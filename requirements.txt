@@ -6,3 +6,4 @@ ultralytics
 requests
 numpy
 eventlet
+gunicorn
