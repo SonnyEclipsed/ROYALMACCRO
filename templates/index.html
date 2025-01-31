@@ -189,16 +189,24 @@
         // Fetch Active Users
         function fetchActiveUsers() {
             fetch("/active_users")
-                .then(res => res.json())
-                .then(users => {
-                    let list = document.getElementById("activity-list");
-                    list.innerHTML = "";
-                    users.forEach(user => {
-                        let li = document.createElement("li");
-                        li.innerText = `CITIZEN ${user.username} HAS JOINED! Last active: ${user.last_active}`;
-                        list.appendChild(li);
-                    });
+            .then(res => res.json())
+            .then(users => {
+                let list = document.getElementById("activity-list");
+                list.innerHTML = "";
+
+                users.forEach((user, index) => {
+                    let li = document.createElement("li");
+
+                    // Style the introductory messages differently
+                    if (index === 0 || index === 1) {
+                        li.style.fontWeight = "bold";
+                        li.style.color = "#4dff00";  // Match theme color
+                    }
+
+                    li.innerText = user.username;
+                    list.appendChild(li);
                 });
+            });
         }
     
         // Handle Player Choices
@@ -266,9 +274,8 @@
                 alert("Login successful! Welcome, " + playerName + "!");
             }
         });
-}
+    }
 
-    
         // Logout User
         function logout() {
             fetch("/logout", { method: "POST" }).then(res => res.json()).then(data => {
