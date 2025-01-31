@@ -97,4 +97,5 @@ def game():
     return jsonify({"response": gpt_output, "state": player_state})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    port = int(os.environ.get("PORT", 5000))  # Use Railway-assigned port
+    app.run(host='0.0.0.0', port=port)
