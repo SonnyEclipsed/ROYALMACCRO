@@ -1,0 +1,19 @@
+# Ignore Python virtual environment
+venv/
+
+# Ignore compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore log files
+*.log
+
+# Ignore Windows/macOS system files
+.DS_Store
+Thumbs.db
+
+# Ignore large binary files
+*.pyd
+*.dll
+*.lib

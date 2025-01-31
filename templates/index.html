@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>- - - - - Royal Maccro® - - - - -</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand+SC&family=Reenie+Beanie&family=Shadows+Into+Light&family=Rock+Salt&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Shadows+Into+Light+Two&family=Gloria+Hallelujah&display=swap" rel="stylesheet">
+
+    <script>
+        function enableTextInput() {
+            document.getElementById('custom-input').style.display = 'block';
+            document.getElementById('custom-text').focus();
+        }
+
+        function submitCustomInput() {
+            let textInput = document.getElementById('custom-text').value;
+            fetch('/game', {
+                method: 'POST',
+                body: JSON.stringify({ action: textInput }),
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('prompt').innerText = data.response;
+                document.getElementById('custom-input').style.display = 'none';
+            });
+        }
+
+        // Make the sticky note draggable
+        function makeDraggable(element) {
+            let offsetX, offsetY, isDragging = false;
+
+            element.addEventListener('mousedown', (event) => {
+                isDragging = true;
+                offsetX = event.clientX - element.getBoundingClientRect().left;
+                offsetY = event.clientY - element.getBoundingClientRect().top;
+                element.style.position = "absolute";
+            });
+
+            document.addEventListener('mousemove', (event) => {
+                if (isDragging) {
+                    element.style.left = (event.clientX - offsetX) + 'px';
+                    element.style.top = (event.clientY - offsetY) + 'px';
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            makeDraggable(document.getElementById("stats-container"));
+        });
+
+    </script>
+</head>
+<body>
+    <pre class="ascii-title">
+        ▄▄███▄▄·██╗  ██╗ █████╗ ██████╗ ███████╗    ▄▄███▄▄·██╗███╗   ███╗       ██╗        ██████╗ ██████╗    
+        ██╔════╝██║  ██║██╔══██╗██╔══██╗██╔════╝    ██╔════╝██║████╗ ████║       ██║       ██╔════╝██╔═████╗   
+        ███████╗███████║███████║██████╔╝█████╗      ███████╗██║██╔████╔██║    ████████╗    ██║     ██║██╔██║   
+        ╚════██║██╔══██║██╔══██║██╔══██╗██╔══╝      ╚════██║██║██║╚██╔╝██║    ██╔═██╔═╝    ██║     ████╔╝██║   
+        ███████║██║  ██║██║  ██║██║  ██║███████╗    ███████║██║██║ ╚═╝ ██║    ██████║      ╚██████╗╚██████╔╝██╗
+        ╚═▀▀▀══╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝    ╚═▀▀▀══╝╚═╝╚═╝     ╚═╝    ╚═════╝       ╚═════╝ ╚═════╝ ╚═╝
+             
+    </pre>
+
+    <!-- Sticky Note for Player Stats (Draggable) -->
+    <div id="stats-container" class="stats-container">
+        <h3>Player Stats</h3>
+        <p>Age: <span id="age">25</span></p>
+        <p>Net Worth: <span id="wealth">$1000</span></p>
+        <p>Daily Avg. Pay: <span id="pay">$50</span></p>
+        <p>Salary: <span id="salary"</span></p>
+        <p>Country: <span id="country">United States</span></p>
+    </div>
+
+    <!-- Centered Game Prompt -->
+    <div class="prompt-container">
+        <p id="prompt">You wake up in a strange city. What do you do?</p>
+        <button class="choice-button" onclick="submitChoice('Explore')">Explore</button>
+        <button class="choice-button" onclick="submitChoice('Talk to a Stranger')">Talk to a Stranger</button>
+        <button class="choice-button" onclick="submitChoice('Find Work')">Find Work</button>
+        <button class="choice-button" onclick="submitChoice('Rest')">Rest</button>
+        <button class="choice-button" onclick="enableTextInput()">Type Your Own Choice</button>
+
+        <!-- Input field for custom choice -->
+        <div id="custom-input">
+            <input type="text" id="custom-text" placeholder="Type your choice..." />
+            <button onclick="submitCustomInput()">Submit</button>
+        </div>
+    </div>
+
+    <script>
+        function submitChoice(choice) {
+            fetch('/game', {
+                method: 'POST',
+                body: JSON.stringify({ action: choice }),
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('prompt').innerText = data.response;
+            });
+        }
+    </script>
+
+</body>
+</html>

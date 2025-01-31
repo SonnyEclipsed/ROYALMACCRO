@@ -1,0 +1,8 @@
+flask
+flask-socketio
+openai
+opencv-python
+ultralytics
+requests
+numpy
+eventlet

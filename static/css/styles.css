@@ -1,0 +1,123 @@
+body {
+    background-color: black;
+    color: #4dff00; /* Neon Green */
+    font-family: 'Courier New', monospace;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* Keeps the title at the top */
+.ascii-title {
+    font-size: 14px;
+    color: #00ff00;
+    white-space: pre;
+    text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
+    margin-top: 20px;
+    margin-bottom: 40px;
+}
+
+/* Centers the prompt and choices */
+.prompt-container {
+    text-align: center;
+    max-width: 600px;
+}
+
+#prompt {
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+    margin-bottom: 20px;
+}
+
+/* Buttons are centered and styled */
+.choice-button {
+    display: block;
+    width: 100%;
+    margin: 10px auto;
+    padding: 10px;
+    background: black;
+    border: 2px solid #4dff00;
+    color: #4dff00;
+    font-size: 18px;
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.choice-button:hover {
+    background: #4dff00;
+    color: black;
+}
+
+/* Sticky Note */
+.stats-container {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+    background: #fffa90; /* Sticky note color */
+    padding: 15px;
+    width: 220px;
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.5);
+    font-family: 'Patrick Hand SC', 'Reenie Beanie', 'Shadows Into Light', cursive;
+    font-size: 22px;
+    border-radius: 10px;
+    text-align: left;
+    cursor: grab;
+}
+
+/* Title inside sticky note */
+.stats-container h3 {
+    margin: 0px;
+    font-size: 20px;
+    color: #1b1b1b;
+    text-decoration: underline;
+    font-family:  'Rock Salt', 'Patrick Hand SC', cursive
+}
+
+/* Sloppy Handwriting for Stats */
+.stats-container p {
+    margin: 5px 0;
+    color: #2e2e2e;
+    font-family: 'Caveat', 'Shadows Into Light Two', 'Gloria Hallelujah', cursive;
+    font-size: 20px;
+    line-height: 1.2;
+}
+
+/* Input box styling */
+#custom-input {
+    display: none;
+    margin-top: 10px;
+}
+
+#custom-text {
+    width: 80%;
+    padding: 10px;
+    font-size: 18px;
+    font-family: 'Courier New', monospace;
+    background: black;
+    color: #4dff00;
+    border: 2px solid #4dff00;
+    text-align: center;
+}
+
+#custom-input button {
+    padding: 10px;
+    margin-left: 5px;
+    background: #4dff00;
+    color: black;
+    font-family: 'Courier New', monospace;
+    border: none;
+    cursor: pointer;
+}
+
+#custom-input button:hover {
+    background: black;
+    color: #4dff00;
+    border: 2px solid #4dff00;
+}
