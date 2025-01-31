@@ -1,8 +1,13 @@
 from flask import Flask, render_template, request, jsonify, session
 import openai
+import os
 import redis
 import json
 from uuid import uuid4
+
+# Use Railway's Redis URL
+redis_url = os.getenv("REDIS_URL", "redis://default:VWsosYDCiGPFYBIBYNTODLqkeGkXQYho@monorail.proxy.rlwy.net:33785")  # Fallback to local Redis if Railway not set
+r = redis.StrictRedis.from_url(redis_url, decode_responses=True)
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
