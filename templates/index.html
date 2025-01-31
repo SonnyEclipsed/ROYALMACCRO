@@ -74,7 +74,7 @@
         <p>Age: <span id="age">25</span></p>
         <p>Net Worth: <span id="wealth">$1000</span></p>
         <p>Daily Avg. Pay: <span id="pay">$50</span></p>
-        <p>Salary: <span id="salary"</span></p>
+        <p>Salary: <span id="salary"></span></p>
         <p>Country: <span id="country">United States</span></p>
     </div>
 
@@ -94,7 +94,114 @@
         </div>
     </div>
 
+    <!-- Settings Button & Menu -->
+    <div id="settings-container">
+        <button id="settings-btn">⚙️ Settings</button>
+        <div id="settings-menu" class="hidden">
+            <button id="show-activity">Player Activity</button>
+            <button id="show-auth">User Login</button>
+        </div>
+    </div>
+
+    <!-- Auth Window (Hidden by Default) -->
+    <div id="auth-window" class="auth-window hidden">
+        <div class="auth-tabs">
+            <button class="auth-tab active" id="tab-login">Login</button>
+            <button class="auth-tab" id="tab-signup">Sign Up</button>
+        </div>
+        <div class="auth-content" id="login-form">
+            <h3>Login</h3>
+            <input type="text" id="login-username" placeholder="Username">
+            <input type="password" id="login-password" placeholder="Password">
+            <input type="text" id="login-playername" placeholder="Player Name">
+            <button onclick="login()">Login</button>
+        </div>
+        <div class="auth-content hidden" id="signup-form">
+            <h3>Sign Up</h3>
+            <input type="text" id="signup-username" placeholder="Username">
+            <input type="password" id="signup-password" placeholder="Password">
+            <button onclick="register()">Sign Up</button>
+        </div>
+    </div>
+
+    <!-- Draggable Player Activity Window (Hidden by Default) -->
+    <div id="player-activity" class="activity-window hidden">
+        <h3>Player Activity</h3>
+        <ul id="activity-list"></ul>
+    </div>
+
+
+
     <script>
+        // Toggle Settings Menu
+        document.getElementById("settings-btn").addEventListener("click", (event) => {
+            let menu = document.getElementById("settings-menu");
+            menu.classList.toggle("hidden");
+            event.stopPropagation(); // Prevent immediate closing
+        });
+    
+        // Close Settings Menu when clicking outside
+        document.addEventListener("click", (event) => {
+            let menu = document.getElementById("settings-menu");
+            let button = document.getElementById("settings-btn");
+    
+            if (!menu.contains(event.target) && event.target !== button) {
+                menu.classList.add("hidden");
+            }
+        });
+    
+        // Toggle Player Activity Window
+        document.getElementById("show-activity").addEventListener("click", (event) => {
+            let activityWindow = document.getElementById("player-activity");
+            activityWindow.classList.toggle("hidden");
+            fetchActiveUsers(); // Refresh user list
+            event.stopPropagation();
+        });
+    
+        // Make the Player Activity Window Draggable
+        function makeDraggable(element) {
+            let offsetX, offsetY, isDragging = false;
+    
+            element.addEventListener("mousedown", (event) => {
+                isDragging = true;
+                offsetX = event.clientX - element.getBoundingClientRect().left;
+                offsetY = event.clientY - element.getBoundingClientRect().top;
+                element.style.position = "absolute";
+                element.style.zIndex = "1000"; // Keep it above other elements
+            });
+    
+            document.addEventListener("mousemove", (event) => {
+                if (isDragging) {
+                    element.style.left = (event.clientX - offsetX) + "px";
+                    element.style.top = (event.clientY - offsetY) + "px";
+                }
+            });
+    
+            document.addEventListener("mouseup", () => {
+                isDragging = false;
+            });
+        }
+    
+        document.addEventListener("DOMContentLoaded", function () {
+            makeDraggable(document.getElementById("player-activity"));
+        });
+    
+        // Fetch Active Users
+        function fetchActiveUsers() {
+            fetch("/active_users")
+                .then(res => res.json())
+                .then(users => {
+                    let list = document.getElementById("activity-list");
+                    list.innerHTML = "";
+                    users.forEach(user => {
+                        let li = document.createElement("li");
+                        li.innerText = `CITIZEN ${user.username} HAS JOINED! Last active: ${user.last_active}`;
+                        list.appendChild(li);
+                    });
+                });
+        }
+    
+        // Handle Player Choices
         function submitChoice(choice) {
             fetch('/game', {
                 method: 'POST',
@@ -106,7 +213,111 @@
                 document.getElementById('prompt').innerText = data.response;
             });
         }
-    </script>
+    
+        // Toggle Auth Window
+        document.getElementById("show-auth").addEventListener("click", () => {
+            document.getElementById("auth-window").classList.toggle("hidden");
+        });
+    
+        // Toggle Between Login & Signup Tabs
+        document.getElementById("tab-login").addEventListener("click", () => {
+            document.getElementById("login-form").classList.remove("hidden");
+            document.getElementById("signup-form").classList.add("hidden");
+            document.getElementById("tab-login").classList.add("active");
+            document.getElementById("tab-signup").classList.remove("active");
+        });
+    
+        document.getElementById("tab-signup").addEventListener("click", () => {
+            document.getElementById("signup-form").classList.remove("hidden");
+            document.getElementById("login-form").classList.add("hidden");
+            document.getElementById("tab-signup").classList.add("active");
+            document.getElementById("tab-login").classList.remove("active");
+        });
+    
+        // Register New User
+        function register() {
+            let username = document.getElementById("signup-username").value;
+            let password = document.getElementById("signup-password").value;
+    
+            fetch("/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username, password })
+            }).then(res => res.json()).then(data => {
+                alert(data.message || data.error);
+            });
+        }
+    
+        // Login Existing User
+        function login() {
+        let username = document.getElementById("login-username").value;
+        let password = document.getElementById("login-password").value;
+        let playerName = document.getElementById("login-playername").value;  // ADDED
+
+        fetch("/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username, password, playerName })  // ADDED playerName
+        }).then(res => res.json()).then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                sessionStorage.setItem("playerName", playerName); // Store the player name in session storage
+                alert("Login successful! Welcome, " + playerName + "!");
+            }
+        });
+}
+
+    
+        // Logout User
+        function logout() {
+            fetch("/logout", { method: "POST" }).then(res => res.json()).then(data => {
+                alert(data.message);
+            });
+        }
+
+    // Make the Player Activity & User Login Windows Draggable
+    function makeDraggable(element) {
+        let offsetX, offsetY, isDragging = false;
+
+        element.addEventListener("mousedown", (event) => {
+            isDragging = true;
+            offsetX = event.clientX - element.getBoundingClientRect().left;
+            offsetY = event.clientY - element.getBoundingClientRect().top;
+            element.style.position = "absolute";
+            element.style.zIndex = "1000"; // Keep it above other elements
+        });
+
+        document.addEventListener("mousemove", (event) => {
+            if (isDragging) {
+                element.style.left = (event.clientX - offsetX) + "px";
+                element.style.top = (event.clientY - offsetY) + "px";
+            }
+        });
+
+        document.addEventListener("mouseup", () => {
+            isDragging = false;
+        });
+
+        // Change cursor when hovering over draggable elements
+        element.style.cursor = "grab";
+
+        element.addEventListener("mousedown", () => {
+            element.style.cursor = "grabbing";
+        });
+
+        element.addEventListener("mouseup", () => {
+            element.style.cursor = "grab";
+        });
+    }
+
+    // Initialize Draggable Elements After Page Loads
+    document.addEventListener("DOMContentLoaded", function () {
+        makeDraggable(document.getElementById("player-activity"));
+        makeDraggable(document.getElementById("auth-window"));  // Make User Login window draggable
+    });
+
+    </script>    
 
 </body>
 </html>

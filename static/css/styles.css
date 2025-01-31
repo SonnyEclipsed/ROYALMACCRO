@@ -121,3 +121,141 @@ body {
     color: #4dff00;
     border: 2px solid #4dff00;
 }
+
+#settings-container {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 200;
+}
+
+#settings-btn {
+    background: black;
+    color: #4dff00;
+    border: 2px solid #4dff00;
+    padding: 10px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+}
+
+#settings-menu {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    background: black;
+    border: 2px solid #4dff00;
+    padding: 10px;
+    display: none;
+    flex-direction: column;
+}
+
+#settings-menu button {
+    background: black;
+    color: #4dff00;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+}
+
+#settings-menu button:hover {
+    background: #4dff00;
+    color: black;
+}
+
+/* Show the menu when not hidden */
+#settings-menu:not(.hidden) {
+    display: flex;
+}
+
+
+/* Player Activity Window */
+.activity-window {
+    position: absolute;
+    top: 100px;
+    left: 50px;
+    background: black;
+    color: #4dff00;
+    border: 2px solid #4dff00;
+    padding: 10px;
+    width: 250px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Auth Window */
+.auth-window {
+    position: absolute;
+    top: 120px;
+    left: 50px;
+    background: black;
+    color: #4dff00;
+    border: 2px solid #4dff00;
+    padding: 10px;
+    width: 250px;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+}
+
+/* Auth Tabs */
+.auth-tabs {
+    display: flex;
+    justify-content: space-around;
+    border-bottom: 2px solid #4dff00;
+}
+
+.auth-tab {
+    background: black;
+    color: #4dff00;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+}
+
+.auth-tab.active {
+    text-decoration: underline;
+}
+
+/* Auth Inputs */
+.auth-content input {
+    width: 90%;
+    padding: 5px;
+    margin: 5px 0;
+    background: black;
+    color: #4dff00;
+    border: 1px solid #4dff00;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+}
+
+/* Auth Buttons */
+.auth-content button {
+    background: #4dff00;
+    color: black;
+    padding: 5px;
+    cursor: pointer;
+    border: none;
+    font-family: 'Courier New', monospace;
+}
+
+.auth-content button:hover {
+    background: black;
+    color: #4dff00;
+    border: 2px solid #4dff00;
+}
+
+/* Hidden Elements */
+.hidden {
+    display: none;
+}
+
+/* Drag Cursor for Draggable Windows */
+.draggable {
+    cursor: grab;
+}
+
+.draggable:active {
+    cursor: grabbing;
+}
