@@ -1,47 +1,32 @@
 from flask import Flask, render_template, request, jsonify, session
-import openai
-import json
 import os
 import psycopg2
 import bcrypt
-import sqlite3
 from uuid import uuid4
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "default_secret")
 
-# Connect to Railway's PostgreSQL
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///local.db")  # Use SQLite locally if no PostgreSQL URL
+DATABASE_URL = "postgresql://postgres:ehWWGfMGAdwhYBUjIhAFzrobcSVtqjtJ@monorail.proxy.rlwy.net:23609/railway"
 
 def get_db():
-    """Connect to the appropriate database (PostgreSQL on Railway, SQLite locally)."""
-    if DATABASE_URL.startswith("postgres://"):
-        return psycopg2.connect(DATABASE_URL, sslmode="require")
-    else:
-        return sqlite3.connect("local.db")  # Use SQLite locally
+    """Connect to the PostgreSQL database."""
+    return psycopg2.connect(DATABASE_URL, sslmode="require")
 
 def initialize_database():
+    """Create users table if it doesn't exist."""
     conn = get_db()
     cursor = conn.cursor()
 
-    if DATABASE_URL.startswith("postgres://"):
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            joined_at TIMESTAMP DEFAULT NOW()
-        );
-        """)
-    else:  # If using SQLite locally
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            joined_at TEXT DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        online BOOLEAN DEFAULT FALSE
+    );
+    """)
 
     conn.commit()
     cursor.close()
@@ -70,7 +55,6 @@ def register():
         conn.commit()
         session["username"] = new_user  # Store username in session
 
-        # Return the username to display in Player Activity
         return jsonify({"message": f"CITIZEN {new_user} HAS JOINED!", "username": new_user})
 
     except psycopg2.IntegrityError:
@@ -101,7 +85,7 @@ def login():
     session["username"] = username
     session["player_name"] = player_name  # Store Player Name in session
 
-    cursor.execute("UPDATE users SET online = TRUE, last_active = NOW() WHERE id = %s", (user[0],))
+    cursor.execute("UPDATE users SET online = TRUE WHERE id = %s", (user[0],))
     conn.commit()
 
     cursor.close()
@@ -109,26 +93,23 @@ def login():
 
     return jsonify({"message": "Login successful", "username": username, "playerName": player_name})
 
-# Get Active Users
 @app.route('/active_users', methods=['GET'])
 def active_users():
-    """Retrieve a list of active users from the database and show database type for the first player."""
+    """Retrieve a list of active users from the database."""
     conn = get_db()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT username FROM users")
+    cursor.execute("SELECT username FROM users WHERE online = TRUE")
     users = cursor.fetchall()
     
     cursor.close()
     conn.close()
 
     user_list = [{"username": user[0]} for user in users]
-    
+
     # Add a message showing the database type for the first player
-    if len(user_list) > 0:
-        database_type = "PostgreSQL (Railway)" if DATABASE_URL.startswith("postgres://") else "SQLite (Local)"
-        user_list.insert(0, {"username": "🟢 Welcome to Royal Maccro!"})
-        user_list.insert(0, {"username": f"🗄️ Using {database_type}"})  # First message in list
+    user_list.insert(0, {"username": "🟢 Welcome to Royal Maccro!"})
+    user_list.insert(0, {"username": "🗄️ Using PostgreSQL (Railway)"})  
 
     return jsonify(user_list)
 
