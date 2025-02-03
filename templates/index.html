@@ -101,7 +101,6 @@
         <div id="settings-menu" class="hidden">
             <button id="show-activity">Player Activity</button>
             <button id="show-auth">User Login</button>
-            <button onclick="logout()">🚪 Logout</button>
         </div>
     </div>
 
@@ -325,34 +324,6 @@
         makeDraggable(document.getElementById("player-activity"));
         makeDraggable(document.getElementById("auth-window"));  // Make User Login window draggable
     });
-
-    function logout() {
-    fetch("/logout", { method: "POST" })
-        .then(res => res.json())
-        .then(data => {
-            alert(data.message);
-            location.reload(); // Refresh page after logout
-        });
-    }
-
-    // Send a "Keep Alive" request every 60 seconds to prevent auto-logout
-    setInterval(() => {
-    fetch("/keep_alive", { method: "POST" })
-        .then(res => res.json())
-        .then(data => console.log(data.message))
-        .catch(err => console.error("Keep Alive Error:", err));
-    }, 60000); // Every 60 seconds
-
-    setInterval(() => {
-    fetch("/check_inactivity", { method: "POST" })
-        .then(res => res.json())
-        .then(data => {
-            if (data.message.includes("logged out")) {
-                alert(data.message);
-                location.reload();
-            }
-        });
-    }, 60000); // Check every 60 seconds (1 minute)
 
     </script>    
 
