@@ -76,9 +76,9 @@
         <p>Daily Pay: <span id="pay">-</span></p>
         <p>Savings Balance: <span id="wealth">-</span></p>
         <p>Salary: <span id="salary">-</span></p>
-        <p>Location: <span id="current-location">-</span></p>
         <p>Country: <span id="country">-</span></p>
     </div>
+
 
     <!-- Centered Game Prompt -->
     <div class="prompt-container">
@@ -330,11 +330,6 @@
         });
     }
 
-    // Function to check if the user is logged in
-    function isUserLoggedIn() {
-        return sessionStorage.getItem("loggedIn") === "true";
-    }
-
     // Logout User
     function logout() {
         fetch("/logout", { method: "POST" }).then(res => res.json()).then(data => {
@@ -402,7 +397,6 @@
                 document.getElementById("pay").innerText = "";
                 document.getElementById("wealth").innerText = "";
                 document.getElementById("salary").innerText = "";
-                document.getElementById("current-location").innerText = "-";
                 document.getElementById("country").innerText = "";
             } else {
                 document.getElementById("player-name").innerText = data.player_name || "Unknown";
@@ -410,7 +404,6 @@
                 document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
                 document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "-";
                 document.getElementById("salary").innerText = data.salary ? `$${data.salary}` : "-";
-                document.getElementById("current-location").innerText = data.current_location || "-";
                 document.getElementById("country").innerText = data.country || "-";
             }
         })

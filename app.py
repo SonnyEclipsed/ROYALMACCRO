@@ -38,7 +38,6 @@ def initialize_database():
         user_age INTEGER DEFAULT 25,
         user_balance INTEGER DEFAULT 1000,
         user_salary INTEGER DEFAULT 18250,
-        current_location TEXT DEFAULT 'New York City',
         user_country TEXT DEFAULT 'United States'
     );
     """)
@@ -136,9 +135,9 @@ def login():
 
     if not profile_exists:
         cursor.execute("""
-            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_salary, user_country, current_location)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (username, player_name, 25, 1000, 18250, 'United States', 'Starting Point'))
+            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_salary, user_country)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (username, player_name, 25, 1000, 18250, 'United States'))
         print(f"User profile initialized for {username}.")
     else:
         # Update player name on login
@@ -146,7 +145,7 @@ def login():
 
     # Fetch user profile data
     cursor.execute("""
-        SELECT player_name, user_age, user_balance, user_salary, current_location, user_country
+        SELECT player_name, user_age, user_balance, user_salary, user_country 
         FROM user_profiles WHERE username = %s
     """, (username,))
     user_data = cursor.fetchone()
@@ -162,9 +161,9 @@ def login():
             "age": user_data[1],
             "balance": user_data[2],
             "salary": user_data[3],
-            "current_location": user_data[4],
-            "country": user_data[5]
+            "country": user_data[4]
         })
+    
     else:
         return jsonify({"error": "User profile not found"}), 404
 
@@ -214,7 +213,7 @@ def get_user_profile():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT player_name, user_age, user_balance, user_salary, current_location, user_country
+        SELECT player_name, user_age, user_balance, user_salary, user_country
         FROM user_profiles WHERE username = %s
     """, (session["username"],))
     user = cursor.fetchone()
@@ -228,8 +227,7 @@ def get_user_profile():
             "age": user[1],
             "balance": user[2],
             "salary": user[3],
-            "current_location": user[4],
-            "country": user[5]
+            "country": user[4]
         })
     else:
         return jsonify({"error": "User not found"}), 404
