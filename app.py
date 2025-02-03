@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, session
 import os
 import psycopg2
 import bcrypt
+import re
 from uuid import uuid4
 
 app = Flask(__name__)
@@ -14,7 +15,7 @@ def get_db():
     return psycopg2.connect(DATABASE_URL, sslmode="require")
 
 def initialize_database():
-    """Create users table if it doesn't exist."""
+    """Create users table if it doesn't exist and add new fields."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -23,6 +24,12 @@ def initialize_database():
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
+        player_name TEXT DEFAULT 'Unknown',
+        age INTEGER DEFAULT 25,
+        daily_pay INTEGER DEFAULT 50,
+        savings_balance INTEGER DEFAULT 1000,
+        salary INTEGER DEFAULT 18250,
+        country TEXT DEFAULT 'United States',
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         online BOOLEAN DEFAULT FALSE
     );
@@ -43,6 +50,15 @@ def register():
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
 
+    # Password validation rules
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters long"}), 400
+    if not re.search(r'[A-Z]', password):
+        return jsonify({"error": "Password must contain at least one uppercase letter"}), 400
+    if not re.search(r'[!@#$%^&*]', password):
+        return jsonify({"error": "Password must contain at least one special character (!@#$%^&*)"}), 400
+
+    # Hash the password
     hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
     conn = get_db()
@@ -70,7 +86,7 @@ def login():
     data = request.json
     username = data.get("username")
     password = data.get("password")
-    player_name = data.get("playerName")  # ADDED
+    player_name = data.get("playerName")  # User-provided player name
 
     conn = get_db()
     cursor = conn.cursor()
@@ -85,13 +101,48 @@ def login():
     session["username"] = username
     session["player_name"] = player_name  # Store Player Name in session
 
-    cursor.execute("UPDATE users SET online = TRUE WHERE id = %s", (user[0],))
-    conn.commit()
+    # Update player name in database
+    cursor.execute("""
+        UPDATE users 
+        SET online = TRUE, player_name = %s 
+        WHERE id = %s
+    """, (player_name, user[0]))
 
+    # Fetch user data to return
+    cursor.execute("""
+        SELECT player_name, age, daily_pay, savings_balance, salary, country 
+        FROM users WHERE id = %s
+    """, (user[0],))
+    user_data = cursor.fetchone()
+
+    conn.commit()
     cursor.close()
     conn.close()
 
-    return jsonify({"message": "Login successful", "username": username, "playerName": player_name})
+    return jsonify({
+        "message": "Login successful",
+        "username": username,
+        "player_name": user_data[0],
+        "age": user_data[1],
+        "daily_pay": user_data[2],
+        "savings_balance": user_data[3],
+        "salary": user_data[4],
+        "country": user_data[5]
+    })
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    """Logs out a player by updating their online status and clearing their session."""
+    if "user_id" in session:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET online = FALSE WHERE id = %s", (session["user_id"],))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    session.clear()  # Remove session data
+    return jsonify({"message": "Logout successful"})
 
 @app.route('/active_users', methods=['GET'])
 def active_users():
@@ -105,11 +156,10 @@ def active_users():
     cursor.close()
     conn.close()
 
-    user_list = [{"username": user[0]} for user in users]
+    if not users:
+        return jsonify([{"username": "None"}])  # Show "None" if no players are online
 
-    # Announce logouts in the Player Activity
-    user_list.insert(0, {"username": "🟢 Welcome to Royal Maccro!"})
-    user_list.insert(0, {"username": "🗄️ Using PostgreSQL (Railway)"})  
+    user_list = [{"username": user[0]} for user in users] 
 
     return jsonify(user_list)
 

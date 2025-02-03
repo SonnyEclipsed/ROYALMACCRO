@@ -71,13 +71,15 @@
     <!-- Sticky Note for Player Stats (Draggable) -->
     <div id="stats-container" class="stats-container">
         <h3>Stats</h3>
-        <p>Name: <span id="name">Civilian</span></p>
-        <p>Age: <span id="age">25</span></p>
-        <p>Daily Pay: <span id="pay">$50</span></p>
-        <p>Savings Balance: <span id="wealth">$1000</span></p>
-        <p>Salary: <span id="salary"></span>$18,250</p>
-        <p>Country: <span id="country">United States</span></p>
+        <p id="stats-message">Login in Settings to Play</p>  
+        <p>Name: <span id="name"></span></p>
+        <p>Age: <span id="age"></span></p>
+        <p>Daily Pay: <span id="pay"></span></p>
+        <p>Savings Balance: <span id="wealth"></span></p>
+        <p>Salary: <span id="salary"></span></p>
+        <p>Country: <span id="country"></span></p>
     </div>
+
 
     <!-- Centered Game Prompt -->
     <div class="prompt-container">
@@ -99,8 +101,9 @@
     <div id="settings-container">
         <button id="settings-btn">⚙️ Settings</button>
         <div id="settings-menu" class="hidden">
-            <button id="show-activity">Player Activity</button>
+            <button id="show-activity">Active Players</button>
             <button id="show-auth">User Login</button>
+            <button onclick="logout()">Logout</button>
         </div>
     </div>
 
@@ -127,7 +130,7 @@
 
     <!-- Draggable Player Activity Window (Hidden by Default) -->
     <div id="player-activity" class="activity-window hidden">
-        <h3>Player Activity</h3>
+        <h3>Active Players</h3>
         <ul id="activity-list"></ul>
     </div>
 
@@ -195,18 +198,33 @@
                 let list = document.getElementById("activity-list");
                 list.innerHTML = "";
 
-                users.forEach((user, index) => {
-                    let li = document.createElement("li");
-
-                    // Style the introductory messages differently
-                    if (index === 0 || index === 1) {
-                        li.style.fontWeight = "bold";
-                        li.style.color = "#4dff00";  // Match theme color
+                // If "None" is returned, display it in Player Activity
+                if (users.length === 1 && users[0].username === "None") {
+                    let noneMessage = document.createElement("li");
+                    noneMessage.id = "no-players";  // Assign ID to remove it later
+                    noneMessage.innerText = "None";
+                    noneMessage.style.fontStyle = "italic";
+                    list.appendChild(noneMessage);
+                } else {
+                    // Remove "None" message if players exist
+                    let noneMessage = document.getElementById("no-players");
+                    if (noneMessage) {
+                        noneMessage.remove();
                     }
 
-                    li.innerText = user.username;
-                    list.appendChild(li);
-                });
+                    users.forEach((user, index) => {
+                        let li = document.createElement("li");
+
+                        // Style the introductory messages differently
+                        if (index === 0 || index === 1) {
+                            li.style.fontWeight = "bold";
+                            li.style.color = "#4dff00";  // Match theme color
+                        }
+
+                        li.innerText = user.username;
+                        list.appendChild(li);
+                    });
+                }
             });
         }
     
@@ -247,13 +265,38 @@
         function register() {
             let username = document.getElementById("signup-username").value;
             let password = document.getElementById("signup-password").value;
-    
+
+            // Password validation (matches backend rules)
+            if (password.length < 8) {
+                alert("❌ Password must be at least 8 characters long.");
+                return;
+            }
+            if (!/[A-Z]/.test(password)) {
+                alert("❌ Password must contain at least one uppercase letter.");
+                return;
+            }
+            if (!/[!@#$%^&*]/.test(password)) {
+                alert("❌ Password must contain at least one special character (!@#$%^&*).");
+                return;
+            }
+
             fetch("/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password })
-            }).then(res => res.json()).then(data => {
-                alert(data.message || data.error);
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert("❌ " + data.error);
+                } else {
+                    alert("✅ " + data.message);
+                    fetchActiveUsers();  // Refresh player activity after registering
+                }
+            })
+            .catch(error => {
+                alert("❌ Registration failed. See console for details.");
+                console.error(error);
             });
         }
     
@@ -324,6 +367,44 @@
         makeDraggable(document.getElementById("player-activity"));
         makeDraggable(document.getElementById("auth-window"));  // Make User Login window draggable
     });
+
+    function logout() {
+        fetch("/logout", { method: "POST" })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            fetchActiveUsers(); // Refresh Player Activity after logging out
+        });
+    }
+
+    function updateStats() {
+        fetch("/get_user_info")
+        .then(res => res.json())
+        .then(data => {
+            let statsMessage = document.getElementById("stats-message");
+
+            if (data.error) {
+                statsMessage.innerText = "Login in Settings to Play";
+            } else {
+                statsMessage.innerText = "";  // Hide login message when a user is logged in
+
+                document.getElementById("name").innerText = data.player_name || "Unknown";
+                document.getElementById("age").innerText = data.age || "-";
+                document.getElementById("pay").innerText = data.daily_pay ? `$${data.daily_pay}` : "-";
+                document.getElementById("wealth").innerText = data.savings_balance ? `$${data.savings_balance}` : "-";
+                document.getElementById("salary").innerText = data.salary ? `$${data.salary}` : "-";
+                document.getElementById("country").innerText = data.country || "-";
+            }
+        })
+        .catch(error => console.error("Error fetching user info:", error));
+    }
+
+    // Fetch stats on page load and update every 10 seconds
+    document.addEventListener("DOMContentLoaded", function () {
+        updateStats();
+        setInterval(updateStats, 10000);  // Refresh stats every 10 seconds
+    });
+
 
     </script>    
 
