@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session
+from flask_socketio import SocketIO
+import openai
 import os
 import psycopg2
 import bcrypt
@@ -7,6 +9,7 @@ from uuid import uuid4
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "default_secret")
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 DATABASE_URL = "postgresql://postgres:ehWWGfMGAdwhYBUjIhAFzrobcSVtqjtJ@monorail.proxy.rlwy.net:23609/railway"
 
@@ -39,6 +42,16 @@ def initialize_database():
         user_balance INTEGER DEFAULT 1000,
         user_location TEXT DEFAULT 'Starting Point',
         user_country TEXT DEFAULT 'United States'
+    );
+    """)
+
+    # Ensure game_events table exists
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS game_events (
+        id SERIAL PRIMARY KEY,
+        player_name TEXT NOT NULL,
+        event_description TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     """)
 
@@ -231,6 +244,46 @@ def get_user_profile():
         })
     else:
         return jsonify({"error": "User not found"}), 404
+
+# Add game events to database and broadcast them
+@app.route('/submit_action', methods=['POST'])
+def submit_action():
+    """Players submit actions, which are saved and broadcasted."""
+    data = request.json
+    player_name = session.get("player_name")
+    action = data.get("action")
+
+    if not player_name or not action:
+        return jsonify({"error": "Invalid action submission"}), 400
+
+    # Store event in PostgreSQL
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO game_events (player_name, event_description)
+        VALUES (%s, %s)
+    """, (player_name, f"{player_name} chose to {action}"))
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    # Broadcast event to all connected players
+    socketio.emit('game_update', {"message": f"{player_name} chose to {action}"})
+
+    return jsonify({"message": "Action recorded!"})
+
+# Fetch past game events
+@app.route('/get_game_events', methods=['GET'])
+def get_game_events():
+    """Fetch past game events for the event log."""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT player_name, event_description, timestamp FROM game_events ORDER BY timestamp DESC LIMIT 10")
+    events = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    return jsonify([{"player_name": e[0], "description": e[1], "timestamp": e[2]} for e in events])
 
 @app.route('/')
 def home():

@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/styles.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand+SC&family=Reenie+Beanie&family=Shadows+Into+Light&family=Rock+Salt&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Shadows+Into+Light+Two&family=Gloria+Hallelujah&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 
     <script>
         function enableTextInput() {
@@ -101,6 +102,7 @@
         <button id="settings-btn">⚙️ Settings</button>
         <div id="settings-menu" class="hidden">
             <button id="show-activity">Active Players</button>
+            <button id="show-events">Game Events</button>
             <button id="show-auth">User Login</button>
             <button onclick="logout()">Logout</button>
         </div>
@@ -133,8 +135,12 @@
         <ul id="activity-list"></ul>
     </div>
 
-
-
+   <!-- Event Log Window (Draggable) -->
+    <div id="event-log" class="activity-window hidden">
+        <div id="event-log-header" class="drag-handle">Game Events</div>
+        <ul id="event-list"></ul>
+    </div>
+    
     <script>
         // Toggle Settings Menu
         document.getElementById("settings-btn").addEventListener("click", (event) => {
@@ -184,6 +190,13 @@
                 isDragging = false;
             });
         }
+
+        // Toggle Game Events Window
+        document.getElementById("show-events").addEventListener("click", (event) => {
+            let eventLogWindow = document.getElementById("event-log");
+            eventLogWindow.classList.toggle("hidden");
+            event.stopPropagation();
+        });
     
         document.addEventListener("DOMContentLoaded", function () {
             makeDraggable(document.getElementById("player-activity"));
@@ -376,6 +389,7 @@
     document.addEventListener("DOMContentLoaded", function () {
         makeDraggable(document.getElementById("player-activity"));
         makeDraggable(document.getElementById("auth-window"));  // Make User Login window draggable
+        makeDraggable(document.getElementById("event-log"));  // Game Events Window
     });
 
     function logout() {
@@ -415,6 +429,38 @@
         updateUserProfile();
         setInterval(updateUserProfile, 1000);
     });
+
+    const socket = io();
+
+    // Function to add event messages to the UI
+    function addEventMessage(message) {
+        let list = document.getElementById("event-list");
+        let li = document.createElement("li");
+        li.innerText = message;
+        list.prepend(li);
+    }
+
+    // Fetch past events when the page loads
+    function loadPastEvents() {
+        fetch("/get_game_events")
+        .then(res => res.json())
+        .then(events => {
+            let list = document.getElementById("event-list");
+            list.innerHTML = "";  // Clear current log
+            events.forEach(event => {
+                addEventMessage(`${event.timestamp} - ${event.player_name}: ${event.description}`);
+            });
+        })
+        .catch(error => console.error("Error fetching events:", error));
+    }
+
+    // Listen for real-time events
+    socket.on("game_update", function(data) {
+        addEventMessage(data.message);
+    });
+
+    // Load past events on page load
+document.addEventListener("DOMContentLoaded", loadPastEvents);
 
     </script>    
 
