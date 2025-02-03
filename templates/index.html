@@ -314,7 +314,7 @@
                 alert("❌ " + data.error);
             } else {
                 sessionStorage.setItem("playerName", playerName); // Store the player name in session storage
-                alert("Login successful! Welcome, " + data.username + "!");
+                alert("Login successful! Welcome, " + data.player_name + "!");
                 // Update the sticky note with user data
                 document.getElementById("name").innerText = data.username;
                 document.getElementById("age").innerText = data.age || "-";
