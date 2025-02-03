@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='../static/css/styles.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand+SC&family=Reenie+Beanie&family=Shadows+Into+Light&family=Rock+Salt&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Shadows+Into+Light+Two&family=Gloria+Hallelujah&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 
     <script>
         function enableTextInput() {
@@ -429,38 +428,6 @@
         updateUserProfile();
         setInterval(updateUserProfile, 1000);
     });
-
-    const socket = io();
-
-    // Function to add event messages to the UI
-    function addEventMessage(message) {
-        let list = document.getElementById("event-list");
-        let li = document.createElement("li");
-        li.innerText = message;
-        list.prepend(li);
-    }
-
-    // Fetch past events when the page loads
-    function loadPastEvents() {
-        fetch("/get_game_events")
-        .then(res => res.json())
-        .then(events => {
-            let list = document.getElementById("event-list");
-            list.innerHTML = "";  // Clear current log
-            events.forEach(event => {
-                addEventMessage(`${event.timestamp} - ${event.player_name}: ${event.description}`);
-            });
-        })
-        .catch(error => console.error("Error fetching events:", error));
-    }
-
-    // Listen for real-time events
-    socket.on("game_update", function(data) {
-        addEventMessage(data.message);
-    });
-
-    // Load past events on page load
-document.addEventListener("DOMContentLoaded", loadPastEvents);
 
     </script>    
 
