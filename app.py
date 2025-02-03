@@ -37,7 +37,7 @@ def initialize_database():
         player_name TEXT DEFAULT NULL,
         user_age INTEGER DEFAULT 25,
         user_balance INTEGER DEFAULT 1000,
-        user_location TEXT DEFAULT 'Starting Point'
+        user_location TEXT DEFAULT 'Starting Point',
         user_country TEXT DEFAULT 'United States'
     );
     """)
