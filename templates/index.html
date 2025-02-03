@@ -403,7 +403,7 @@
                 document.getElementById("age").innerText = data.age || "-";
                 document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
                 document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "-";
-                document.getElementById("location").innerText = data.location ? `$${data.location}` : "-";
+                document.getElementById("location").innerText = data.location || "-";
                 document.getElementById("country").innerText = data.country || "-";
             }
         })
