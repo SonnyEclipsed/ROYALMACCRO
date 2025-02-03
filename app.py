@@ -38,6 +38,7 @@ def initialize_database():
         user_age INTEGER DEFAULT 25,
         user_balance INTEGER DEFAULT 1000,
         user_salary INTEGER DEFAULT 18250,
+        current_location TEXT DEFAULT 'New York City',
         user_country TEXT DEFAULT 'United States'
     );
     """)
@@ -57,6 +58,10 @@ def register():
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
 
+    # Enforce username length limit
+    if len(username) > 15:
+        return jsonify({"error": "Username must be 15 characters or less"}), 400
+    
     # Password validation rules
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters long"}), 400
@@ -106,6 +111,10 @@ def login():
     if not username or not password or not player_name:
         return jsonify({"error": "Username, password, and player name required"}), 400
 
+    # Enforce player_name length limit
+    if len(player_name) > 15:
+        return jsonify({"error": "Player name must be 15 characters or less"}), 400
+
     conn = get_db()
     cursor = conn.cursor()
 
@@ -127,9 +136,9 @@ def login():
 
     if not profile_exists:
         cursor.execute("""
-            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_salary, user_country)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (username, player_name, 25, 1000, 18250, 'United States'))
+            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_salary, user_country, current_location)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (username, player_name, 25, 1000, 18250, 'United States', 'Starting Point'))
         print(f"User profile initialized for {username}.")
     else:
         # Update player name on login
@@ -137,7 +146,7 @@ def login():
 
     # Fetch user profile data
     cursor.execute("""
-        SELECT player_name, user_age, user_balance, user_salary, user_country 
+        SELECT player_name, user_age, user_balance, user_salary, current_location, user_country
         FROM user_profiles WHERE username = %s
     """, (username,))
     user_data = cursor.fetchone()
@@ -153,9 +162,9 @@ def login():
             "age": user_data[1],
             "balance": user_data[2],
             "salary": user_data[3],
-            "country": user_data[4]
+            "current_location": user_data[4],
+            "country": user_data[5]
         })
-    
     else:
         return jsonify({"error": "User profile not found"}), 404
 
@@ -179,7 +188,12 @@ def active_users():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT username FROM users WHERE online = TRUE")
+    cursor.execute("""
+            SELECT user_profiles.player_name, users.username 
+            FROM users 
+            JOIN user_profiles ON users.username = user_profiles.username 
+            WHERE users.online = TRUE
+        """)
     users = cursor.fetchall()
 
     cursor.close()
@@ -188,9 +202,7 @@ def active_users():
     if not users:
         return jsonify([{"username": "None"}])  # Show "None" if no players are online
 
-    user_list = [{"username": user[0]} for user in users] 
-
-    return jsonify(user_list)
+    return jsonify([{"player_name": user[0], "username": user[1]} for user in users])
 
 @app.route('/get_user_profile', methods=['GET'])
 def get_user_profile():
@@ -202,7 +214,7 @@ def get_user_profile():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT player_name, user_age, user_balance, user_salary, user_country
+        SELECT player_name, user_age, user_balance, user_salary, current_location, user_country
         FROM user_profiles WHERE username = %s
     """, (session["username"],))
     user = cursor.fetchone()
@@ -216,7 +228,8 @@ def get_user_profile():
             "age": user[1],
             "balance": user[2],
             "salary": user[3],
-            "country": user[4]
+            "current_location": user[4],
+            "country": user[5]
         })
     else:
         return jsonify({"error": "User not found"}), 404

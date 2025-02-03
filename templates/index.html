@@ -76,9 +76,9 @@
         <p>Daily Pay: <span id="pay">-</span></p>
         <p>Savings Balance: <span id="wealth">-</span></p>
         <p>Salary: <span id="salary">-</span></p>
+        <p>Location: <span id="current-location">-</span></p>
         <p>Country: <span id="country">-</span></p>
     </div>
-
 
     <!-- Centered Game Prompt -->
     <div class="prompt-container">
@@ -214,18 +214,21 @@
                     users.forEach((user, index) => {
                         let li = document.createElement("li");
 
-                        // Style the introductory messages differently
-                        if (index === 0 || index === 1) {
-                            li.style.fontWeight = "bold";
-                            li.style.color = "#4dff00";  // Match theme color
-                        }
+                        // Format as "Player_name (username)"
+                        li.innerHTML = `${user.player_name} (<i>${user.username}</i>)`;
 
-                        li.innerText = user.username;
                         list.appendChild(li);
                     });
                 }
-            });
+            })
+            .catch(error => console.error("Error fetching active users:", error));
         }
+
+        // Refresh Active Players Every Second
+        setInterval(fetchActiveUsers, 1000);
+
+        // Run on page load
+        document.addEventListener("DOMContentLoaded", fetchActiveUsers);
     
         // Handle Player Choices
         function submitChoice(choice) {
@@ -314,24 +317,30 @@
                 alert("❌ " + data.error);
             } else {
                 sessionStorage.setItem("playerName", playerName); // Store the player name in session storage
-                alert("Login successful! Welcome, " + data.player_name + "!");
-                // Update the sticky note with user data
-                document.getElementById("name").innerText = data.username;
-                document.getElementById("age").innerText = data.age || "-";
-                document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
-                document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "-";
-                document.getElementById("salary").innerText = data.salary ? `$${data.salary}` : "-";
-                document.getElementById("country").innerText = data.country || "-";
+                alert("✅ Login successful! Welcome, " + data.player_name + "!");                // Update the sticky note with user data
+                
+                // Disable login button after successful login
+                document.getElementById("login-button").disabled = true;
+                document.getElementById("login-button").style.opacity = "0.5";
+                document.getElementById("login-button").innerText = "Already Logged In";
+
+                // Update player stats
+                updateUserProfile();
             }
         });
     }
 
-        // Logout User
-        function logout() {
-            fetch("/logout", { method: "POST" }).then(res => res.json()).then(data => {
-                alert(data.message);
-            });
-        }
+    // Function to check if the user is logged in
+    function isUserLoggedIn() {
+        return sessionStorage.getItem("loggedIn") === "true";
+    }
+
+    // Logout User
+    function logout() {
+        fetch("/logout", { method: "POST" }).then(res => res.json()).then(data => {
+            alert(data.message);
+        });
+    }
 
     // Make the Player Activity & User Login Windows Draggable
     function makeDraggable(element) {
@@ -393,6 +402,7 @@
                 document.getElementById("pay").innerText = "";
                 document.getElementById("wealth").innerText = "";
                 document.getElementById("salary").innerText = "";
+                document.getElementById("current-location").innerText = "-";
                 document.getElementById("country").innerText = "";
             } else {
                 document.getElementById("player-name").innerText = data.player_name || "Unknown";
@@ -400,6 +410,7 @@
                 document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
                 document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "-";
                 document.getElementById("salary").innerText = data.salary ? `$${data.salary}` : "-";
+                document.getElementById("current-location").innerText = data.current_location || "-";
                 document.getElementById("country").innerText = data.country || "-";
             }
         })
