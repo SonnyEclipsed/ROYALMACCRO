@@ -38,7 +38,7 @@ def initialize_database():
         user_age INTEGER DEFAULT 25,
         user_balance INTEGER DEFAULT 1000,
         user_salary INTEGER DEFAULT 18250,
-        user_location TEXT DEFAULT 'Lighthouse'
+        user_country TEXT DEFAULT 'United States'
     );
     """)
 
@@ -135,7 +135,7 @@ def login():
 
     if not profile_exists:
         cursor.execute("""
-            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_salary, user_location)
+            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_salary, user_country)
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (username, player_name, 25, 1000, 18250, 'United States'))
         print(f"User profile initialized for {username}.")
@@ -145,7 +145,7 @@ def login():
 
     # Fetch user profile data
     cursor.execute("""
-        SELECT player_name, user_age, user_balance, user_salary, user_location
+        SELECT player_name, user_age, user_balance, user_salary, user_country 
         FROM user_profiles WHERE username = %s
     """, (username,))
     user_data = cursor.fetchone()
@@ -161,7 +161,7 @@ def login():
             "age": user_data[1],
             "balance": user_data[2],
             "salary": user_data[3],
-            "location": user_data[4]
+            "country": user_data[4]
         })
     
     else:
@@ -213,7 +213,7 @@ def get_user_profile():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT player_name, user_age, user_balance, user_salary, user_location
+        SELECT player_name, user_age, user_balance, user_salary, user_country
         FROM user_profiles WHERE username = %s
     """, (session["username"],))
     user = cursor.fetchone()
@@ -227,7 +227,7 @@ def get_user_profile():
             "age": user[1],
             "balance": user[2],
             "salary": user[3],
-            "location": user[4]
+            "country": user[4]
         })
     else:
         return jsonify({"error": "User not found"}), 404
