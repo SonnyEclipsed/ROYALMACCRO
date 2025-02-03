@@ -29,6 +29,18 @@ def initialize_database():
     );
     """)
 
+    # Create the new 'user_profiles' table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_profiles (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        user_age INTEGER DEFAULT 25,
+        user_balance INTEGER DEFAULT 1000,
+        user_salary INTEGER DEFAULT 18250,
+        user_country TEXT DEFAULT 'United States'
+    );
+    """)
+
     conn.commit()
     cursor.close()
     conn.close()
@@ -62,7 +74,11 @@ def register():
         cursor.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING username", 
                        (username, hashed_pw))
         new_user = cursor.fetchone()[0]
+
+        # Insert into user_profiles table
+        cursor.execute("INSERT INTO user_profiles (username) VALUES (%s)", (username,))
         conn.commit()
+        
         session["username"] = new_user  # Store username in session
 
         return jsonify({"message": f"CITIZEN {new_user} HAS JOINED!", "username": new_user})
@@ -135,6 +151,32 @@ def active_users():
     user_list = [{"username": user[0]} for user in users] 
 
     return jsonify(user_list)
+
+@app.route('/get_user_profile', methods=['GET'])
+def get_user_profile():
+    """Retrieve the logged-in user's profile data."""
+    if "username" not in session:
+        return jsonify({"error": "No user logged in"}), 401
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT user_age, user_balance, user_salary, user_country FROM user_profiles WHERE username = %s",
+                   (session["username"],))
+    user = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    if user:
+        return jsonify({
+            "age": user[0],
+            "balance": user[1],
+            "salary": user[2],
+            "country": user[3]
+        })
+    else:
+        return jsonify({"error": "User not found"}), 404
 
 @app.route('/')
 def home():
