@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session
+from datetime import datetime, timedelta
 import os
 import psycopg2
 import bcrypt
@@ -24,7 +25,8 @@ def initialize_database():
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        online BOOLEAN DEFAULT FALSE
+        online BOOLEAN DEFAULT FALSE,
+        last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP  -- New column to track user activity
     );
     """)
 
@@ -85,7 +87,7 @@ def login():
     session["username"] = username
     session["player_name"] = player_name  # Store Player Name in session
 
-    cursor.execute("UPDATE users SET online = TRUE WHERE id = %s", (user[0],))
+    cursor.execute("UPDATE users SET online = TRUE, last_active = NOW() WHERE id = %s", (user[0],))
     conn.commit()
 
     cursor.close()
@@ -95,23 +97,72 @@ def login():
 
 @app.route('/active_users', methods=['GET'])
 def active_users():
-    """Retrieve a list of active users from the database."""
+    """Retrieve a list of active users from the database and show logout messages."""
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute("SELECT username FROM users WHERE online = TRUE")
     users = cursor.fetchall()
-    
+
     cursor.close()
     conn.close()
 
     user_list = [{"username": user[0]} for user in users]
 
-    # Add a message showing the database type for the first player
+    # Announce logouts in the Player Activity
     user_list.insert(0, {"username": "🟢 Welcome to Royal Maccro!"})
     user_list.insert(0, {"username": "🗄️ Using PostgreSQL (Railway)"})  
 
     return jsonify(user_list)
+
+@app.route('/check_inactivity', methods=['POST'])
+def check_inactivity():
+    """Logs out users inactive for more than 5 minutes."""
+    if "user_id" in session:
+        user_id = session["user_id"]
+
+        conn = get_db()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT last_active FROM users WHERE id = %s", (user_id,))
+        last_active = cursor.fetchone()
+
+        if last_active:
+            last_active_time = last_active[0]
+            five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+
+            if last_active_time < five_minutes_ago:
+                # Log out inactive user
+                cursor.execute("UPDATE users SET online = FALSE WHERE id = %s", (user_id,))
+                conn.commit()
+                cursor.close()
+                conn.close()
+
+                session.clear()
+                return jsonify({"message": "You have been logged out due to inactivity."}), 401
+
+        cursor.close()
+        conn.close()
+
+    return jsonify({"message": "User is still active."}), 200
+
+@app.route('/keep_alive', methods=['POST'])
+def keep_alive():
+    """Updates the user's last_active timestamp to prevent auto-logout."""
+    if "user_id" in session:
+        user_id = session["user_id"]
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET last_active = NOW() WHERE id = %s", (user_id,))
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"message": "User activity updated"}), 200
+    
+    return jsonify({"error": "User not logged in"}), 401
+
 
 @app.route('/')
 def home():
