@@ -15,7 +15,7 @@ def get_db():
     return psycopg2.connect(DATABASE_URL, sslmode="require")
 
 def initialize_database():
-    """Create users table if it doesn't exist and add new fields."""
+    """Create users table if it doesn't exist."""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -24,12 +24,6 @@ def initialize_database():
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
-        player_name TEXT DEFAULT 'Unknown',
-        age INTEGER DEFAULT 25,
-        daily_pay INTEGER DEFAULT 50,
-        savings_balance INTEGER DEFAULT 1000,
-        salary INTEGER DEFAULT 18250,
-        country TEXT DEFAULT 'United States',
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         online BOOLEAN DEFAULT FALSE
     );
@@ -86,7 +80,7 @@ def login():
     data = request.json
     username = data.get("username")
     password = data.get("password")
-    player_name = data.get("playerName")  # User-provided player name
+    player_name = data.get("playerName")  # ADDED
 
     conn = get_db()
     cursor = conn.cursor()
@@ -101,34 +95,13 @@ def login():
     session["username"] = username
     session["player_name"] = player_name  # Store Player Name in session
 
-    # Update player name in database
-    cursor.execute("""
-        UPDATE users 
-        SET online = TRUE, player_name = %s 
-        WHERE id = %s
-    """, (player_name, user[0]))
-
-    # Fetch user data to return
-    cursor.execute("""
-        SELECT player_name, age, daily_pay, savings_balance, salary, country 
-        FROM users WHERE id = %s
-    """, (user[0],))
-    user_data = cursor.fetchone()
-
+    cursor.execute("UPDATE users SET online = TRUE WHERE id = %s", (user[0],))
     conn.commit()
+
     cursor.close()
     conn.close()
 
-    return jsonify({
-        "message": "Login successful",
-        "username": username,
-        "player_name": user_data[0],
-        "age": user_data[1],
-        "daily_pay": user_data[2],
-        "savings_balance": user_data[3],
-        "salary": user_data[4],
-        "country": user_data[5]
-    })
+    return jsonify({"message": "Login successful", "username": username, "playerName": player_name})
 
 @app.route('/logout', methods=['POST'])
 def logout():

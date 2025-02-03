@@ -71,15 +71,13 @@
     <!-- Sticky Note for Player Stats (Draggable) -->
     <div id="stats-container" class="stats-container">
         <h3>Stats</h3>
-        <p id="stats-message">Login in Settings to Play</p>  
-        <p>Name: <span id="name"></span></p>
-        <p>Age: <span id="age"></span></p>
-        <p>Daily Pay: <span id="pay"></span></p>
-        <p>Savings Balance: <span id="wealth"></span></p>
-        <p>Salary: <span id="salary"></span></p>
-        <p>Country: <span id="country"></span></p>
+        <p>Name: <span id="name">Civilian</span></p>
+        <p>Age: <span id="age">25</span></p>
+        <p>Daily Pay: <span id="pay">$50</span></p>
+        <p>Savings Balance: <span id="wealth">$1000</span></p>
+        <p>Salary: <span id="salary"></span>$18,250</p>
+        <p>Country: <span id="country">United States</span></p>
     </div>
-
 
     <!-- Centered Game Prompt -->
     <div class="prompt-container">
@@ -376,34 +374,6 @@
             fetchActiveUsers(); // Refresh Player Activity after logging out
         });
     }
-
-    function updateStats() {
-        fetch("/get_user_info")
-        .then(res => res.json())
-        .then(data => {
-            let statsMessage = document.getElementById("stats-message");
-
-            if (data.error) {
-                statsMessage.innerText = "Login in Settings to Play";
-            } else {
-                statsMessage.innerText = "";  // Hide login message when a user is logged in
-
-                document.getElementById("name").innerText = data.player_name || "Unknown";
-                document.getElementById("age").innerText = data.age || "-";
-                document.getElementById("pay").innerText = data.daily_pay ? `$${data.daily_pay}` : "-";
-                document.getElementById("wealth").innerText = data.savings_balance ? `$${data.savings_balance}` : "-";
-                document.getElementById("salary").innerText = data.salary ? `$${data.salary}` : "-";
-                document.getElementById("country").innerText = data.country || "-";
-            }
-        })
-        .catch(error => console.error("Error fetching user info:", error));
-    }
-
-    // Fetch stats on page load and update every 10 seconds
-    document.addEventListener("DOMContentLoaded", function () {
-        updateStats();
-        setInterval(updateStats, 10000);  // Refresh stats every 10 seconds
-    });
 
 
     </script>    
