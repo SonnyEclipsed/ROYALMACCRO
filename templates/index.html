@@ -75,7 +75,7 @@
         <p>Age: <span id="age">-</span></p>
         <p>Daily Pay: <span id="pay">-</span></p>
         <p>Savings Balance: <span id="wealth">-</span></p>
-        <p>Salary: <span id="salary">-</span></p>
+        <p>Location: <span id="location">-</span></p>
         <p>Country: <span id="country">-</span></p>
     </div>
 
@@ -396,14 +396,14 @@
                 document.getElementById("age").innerText = "";
                 document.getElementById("pay").innerText = "";
                 document.getElementById("wealth").innerText = "";
-                document.getElementById("salary").innerText = "";
+                document.getElementById("location").innerText = "";
                 document.getElementById("country").innerText = "";
             } else {
                 document.getElementById("player-name").innerText = data.player_name || "Unknown";
                 document.getElementById("age").innerText = data.age || "-";
                 document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
                 document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "-";
-                document.getElementById("salary").innerText = data.salary ? `$${data.salary}` : "-";
+                document.getElementById("location").innerText = data.location ? `$${data.location}` : "-";
                 document.getElementById("country").innerText = data.country || "-";
             }
         })

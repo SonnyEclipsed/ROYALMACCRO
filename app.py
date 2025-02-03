@@ -37,7 +37,7 @@ def initialize_database():
         player_name TEXT DEFAULT NULL,
         user_age INTEGER DEFAULT 25,
         user_balance INTEGER DEFAULT 1000,
-        user_salary INTEGER DEFAULT 18250,
+        user_location TEXT DEFAULT 'Starting Point'
         user_country TEXT DEFAULT 'United States'
     );
     """)
@@ -135,9 +135,9 @@ def login():
 
     if not profile_exists:
         cursor.execute("""
-            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_salary, user_country)
+            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_location, user_country)
             VALUES (%s, %s, %s, %s, %s, %s)
-        """, (username, player_name, 25, 1000, 18250, 'United States'))
+        """, (username, player_name, 25, 1000, 'Wood Shed', 'United States'))
         print(f"User profile initialized for {username}.")
     else:
         # Update player name on login
@@ -145,7 +145,7 @@ def login():
 
     # Fetch user profile data
     cursor.execute("""
-        SELECT player_name, user_age, user_balance, user_salary, user_country 
+        SELECT player_name, user_age, user_balance, user_location, user_country 
         FROM user_profiles WHERE username = %s
     """, (username,))
     user_data = cursor.fetchone()
@@ -160,7 +160,7 @@ def login():
             "player_name": user_data[0],
             "age": user_data[1],
             "balance": user_data[2],
-            "salary": user_data[3],
+            "location": user_data[3],
             "country": user_data[4]
         })
     
@@ -213,7 +213,7 @@ def get_user_profile():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT player_name, user_age, user_balance, user_salary, user_country
+        SELECT player_name, user_age, user_balance, user_location, user_country
         FROM user_profiles WHERE username = %s
     """, (session["username"],))
     user = cursor.fetchone()
@@ -226,7 +226,7 @@ def get_user_profile():
             "player_name": user[0],
             "age": user[1],
             "balance": user[2],
-            "salary": user[3],
+            "location": user[3],
             "country": user[4]
         })
     else:
