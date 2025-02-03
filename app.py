@@ -34,6 +34,7 @@ def initialize_database():
     CREATE TABLE IF NOT EXISTS user_profiles (
         id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
+        player_name TEXT DEFAULT NULL,
         user_age INTEGER DEFAULT 25,
         user_balance INTEGER DEFAULT 1000,
         user_salary INTEGER DEFAULT 18250,
@@ -74,19 +75,23 @@ def register():
         cursor.execute("INSERT INTO users (username, password_hash) VALUES (%s, %s) RETURNING username", 
                        (username, hashed_pw))
         new_user = cursor.fetchone()[0]
+        print(f"User {new_user} added to users table.")
 
-        # Insert into user_profiles table
-        cursor.execute("INSERT INTO user_profiles (username) VALUES (%s)", (username,))
         conn.commit()
-        
         session["username"] = new_user  # Store username in session
 
         return jsonify({"message": f"CITIZEN {new_user} HAS JOINED!", "username": new_user})
 
-    except psycopg2.IntegrityError:
+    except psycopg2.IntegrityError as e:
         conn.rollback()
+        print(f"Integrity Error: {e}")
         return jsonify({"error": "Username already exists"}), 400
 
+    except Exception as e:
+        conn.rollback()
+        print(f"Error inserting into users: {e}")
+        return jsonify({"error": "Database error"}), 500
+    
     finally:
         cursor.close()
         conn.close()
@@ -97,6 +102,9 @@ def login():
     username = data.get("username")
     password = data.get("password")
     player_name = data.get("playerName")  # ADDED
+
+    if not username or not password or not player_name:
+        return jsonify({"error": "Username, password, and player name required"}), 400
 
     conn = get_db()
     cursor = conn.cursor()
@@ -112,12 +120,44 @@ def login():
     session["player_name"] = player_name  # Store Player Name in session
 
     cursor.execute("UPDATE users SET online = TRUE WHERE id = %s", (user[0],))
-    conn.commit()
+    
+    # Check if user has a profile; if not, insert default profile
+    cursor.execute("SELECT 1 FROM user_profiles WHERE username = %s", (username,))
+    profile_exists = cursor.fetchone()
 
+    if not profile_exists:
+        cursor.execute("""
+            INSERT INTO user_profiles (username, player_name, user_age, user_balance, user_salary, user_country)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (username, player_name, 25, 1000, 18250, 'United States'))
+        print(f"User profile initialized for {username}.")
+    else:
+        # Update player name on login
+        cursor.execute("UPDATE user_profiles SET player_name = %s WHERE username = %s", (player_name, username))
+
+    # Fetch user profile data
+    cursor.execute("""
+        SELECT player_name, user_age, user_balance, user_salary, user_country 
+        FROM user_profiles WHERE username = %s
+    """, (username,))
+    user_data = cursor.fetchone()
+    
+    conn.commit()
     cursor.close()
     conn.close()
 
-    return jsonify({"message": "Login successful", "username": username, "playerName": player_name})
+    if user_data:
+        return jsonify({
+            "message": "Login successful",
+            "player_name": user_data[0],
+            "age": user_data[1],
+            "balance": user_data[2],
+            "salary": user_data[3],
+            "country": user_data[4]
+        })
+    
+    else:
+        return jsonify({"error": "User profile not found"}), 404
 
 @app.route('/logout', methods=['POST'])
 def logout():
@@ -161,8 +201,10 @@ def get_user_profile():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT user_age, user_balance, user_salary, user_country FROM user_profiles WHERE username = %s",
-                   (session["username"],))
+    cursor.execute("""
+        SELECT player_name, user_age, user_balance, user_salary, user_country
+        FROM user_profiles WHERE username = %s
+    """, (session["username"],))
     user = cursor.fetchone()
 
     cursor.close()
@@ -170,10 +212,11 @@ def get_user_profile():
 
     if user:
         return jsonify({
-            "age": user[0],
-            "balance": user[1],
-            "salary": user[2],
-            "country": user[3]
+            "player_name": user[0],
+            "age": user[1],
+            "balance": user[2],
+            "salary": user[3],
+            "country": user[4]
         })
     else:
         return jsonify({"error": "User not found"}), 404

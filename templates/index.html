@@ -71,12 +71,12 @@
     <!-- Sticky Note for Player Stats (Draggable) -->
     <div id="stats-container" class="stats-container">
         <h3>Stats</h3>
-        <p>Name: <span id="name">Civilian</span></p>
-        <p>Age: <span id="age"></span></p>
-        <p>Daily Pay: <span id="pay"></span></p>
-        <p>Savings Balance: <span id="wealth"></span></p>
-        <p>Salary: <span id="salary"></span></p>
-        <p>Country: <span id="country"></span></p>
+        <p>Name: <span id="player-name">-</span></p>
+        <p>Age: <span id="age">-</span></p>
+        <p>Daily Pay: <span id="pay">-</span></p>
+        <p>Savings Balance: <span id="wealth">-</span></p>
+        <p>Salary: <span id="salary">-</span></p>
+        <p>Country: <span id="country">-</span></p>
     </div>
 
 
@@ -311,10 +311,17 @@
             body: JSON.stringify({ username, password, playerName })  // ADDED playerName
         }).then(res => res.json()).then(data => {
             if (data.error) {
-                alert(data.error);
+                alert("❌ " + data.error);
             } else {
                 sessionStorage.setItem("playerName", playerName); // Store the player name in session storage
-                alert("Login successful! Welcome, " + playerName + "!");
+                alert("Login successful! Welcome, " + data.username + "!");
+                // Update the sticky note with user data
+                document.getElementById("name").innerText = data.username;
+                document.getElementById("age").innerText = data.age || "-";
+                document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
+                document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "-";
+                document.getElementById("salary").innerText = data.salary ? `$${data.salary}` : "-";
+                document.getElementById("country").innerText = data.country || "-";
             }
         });
     }
@@ -381,9 +388,16 @@
         .then(res => res.json())
         .then(data => {
             if (data.error) {
-                document.getElementById("name").innerText = "Login in Settings to Play";
+                document.getElementById("player-name").innerText = "Login in Settings to Play";
+                document.getElementById("age").innerText = "";
+                document.getElementById("pay").innerText = "";
+                document.getElementById("wealth").innerText = "";
+                document.getElementById("salary").innerText = "";
+                document.getElementById("country").innerText = "";
             } else {
+                document.getElementById("player-name").innerText = data.player_name || "Unknown";
                 document.getElementById("age").innerText = data.age || "-";
+                document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
                 document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "-";
                 document.getElementById("salary").innerText = data.salary ? `$${data.salary}` : "-";
                 document.getElementById("country").innerText = data.country || "-";
@@ -395,7 +409,7 @@
     // Fetch user profile on page load and update every 10 seconds
     document.addEventListener("DOMContentLoaded", function () {
         updateUserProfile();
-        setInterval(updateUserProfile, 10000);
+        setInterval(updateUserProfile, 1000);
     });
 
     </script>    
