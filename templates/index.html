@@ -104,10 +104,12 @@
         <button id="settings-btn">⚙️ Settings</button>
         <div id="settings-menu" class="hidden">
             <button id="show-auth">User Login</button>
-            <button id="show-activity">Active Players</button>
-            <button id="show-events">Game Events</button>
-            <button onclick="logout()">Logout</button>
-            <button id="restart-btn">Restart From Scratch</button>
+            <div id="settings-buttons" class="hidden">
+                <button id="show-activity">Active Players</button>
+                <button id="show-events">Game Events</button>
+                <button onclick="logout()">Logout</button>
+                <button id="restart-btn">Reset Player</button>
+            </div>
         </div>
     </div>
 
@@ -348,10 +350,16 @@
                 sessionStorage.setItem("playerName", playerName); // Store the player name in session storage
                 alert("✅ Login successful! Welcome, " + data.player_name + "!");                // Update the sticky note with user data
                 
-                // Disable login button after successful login
-                document.getElementById("login-button").disabled = true;
-                document.getElementById("login-button").style.opacity = "0.5";
-                document.getElementById("login-button").innerText = "Already Logged In";
+               // **Close the login window immediately**
+                let authWindow = document.getElementById("auth-window");
+                if (authWindow) {
+                    authWindow.classList.add("hidden");
+                } else {
+                    console.error("❌ Login window (auth-window) not found!");
+                }
+
+                // **Show the settings menu immediately after login**
+                checkLoginStatus();
 
                 // **Show the sticky note after login**
                 document.getElementById("stats-container").classList.remove("hidden");
@@ -369,6 +377,8 @@
             // **Hide the sticky note after logout**
             document.getElementById("stats-container").classList.add("hidden");
             fetchActiveUsers(); // Refresh Player Activity after logging out
+            // **Hide the settings menu immediately after logout**
+            checkLoginStatus();
         });
     }
 
@@ -420,6 +430,13 @@
         .then(data => {
             alert(data.message);
             fetchActiveUsers(); // Refresh Player Activity after logging out
+            // **Close all open popups and activity windows**
+            document.getElementById("player-activity").classList.add("hidden");
+            document.getElementById("event-log").classList.add("hidden");
+            document.getElementById("restart-popup").classList.add("hidden");
+
+            // **Reset settings menu to only show the login button**
+            checkLoginStatus();
         });
     }
 
@@ -489,6 +506,24 @@
             }
         });
     }
+
+    // Function to check if user is logged in and show/hide settings buttons
+    function checkLoginStatus() {
+        fetch("/get_user_status")
+        .then(res => res.json())
+        .then(data => {
+            if (data.logged_in) {
+                document.getElementById("settings-buttons").classList.remove("hidden"); // Show all settings
+                document.getElementById("show-auth").classList.add("hidden"); // Hide Login button
+            } else {
+                document.getElementById("settings-buttons").classList.add("hidden"); // Hide settings
+                document.getElementById("show-auth").classList.remove("hidden"); // Show Login button
+            }
+        });
+    }
+
+    // Run the function on page load
+    document.addEventListener("DOMContentLoaded", checkLoginStatus);
 
     </script>    
 

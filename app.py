@@ -232,6 +232,12 @@ def get_user_profile():
     else:
         return jsonify({"error": "User not found"}), 404
     
+@app.route("/get_user_status", methods=["GET"])
+def get_user_status():
+    if "user_id" in session:
+        return jsonify({"logged_in": True})
+    return jsonify({"logged_in": False})
+    
 @app.route("/restart", methods=["POST"])
 def restart():
     if "user_id" not in session:
