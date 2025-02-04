@@ -14,12 +14,24 @@ body {
 
 /* Keeps the title at the top */
 .ascii-title {
+    position: absolute; /* Allows custom placement */
+    left: 23%; /* Centers horizontally */
+    top: 65px;
     font-size: 14px;
-    color: #00ff00;
+    color: #00ff51;
     white-space: pre;
-    text-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
-    margin-top: 20px;
+    text-shadow: 0 0 5px #009107, 0 0 10px #02fa69;
+    margin-top: 0px;
     margin-bottom: 40px;
+}
+
+.game-title {
+    position: absolute; /* Allows custom placement */
+    top: 70px; /* Adjust distance from the top */
+    left: 80%; /* Centers horizontally */
+    transform: translateX(-50%); /* Ensures proper centering */
+    width: 600px; /* Adjust image size */
+    max-width: 10%; /* Prevents it from being too large */
 }
 
 /* Centers the prompt and choices */

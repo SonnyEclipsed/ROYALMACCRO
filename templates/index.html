@@ -59,17 +59,20 @@
 </head>
 <body>
     <pre class="ascii-title">
-        ▄▄███▄▄·██╗  ██╗ █████╗ ██████╗ ███████╗    ▄▄███▄▄·██╗███╗   ███╗       ██╗        ██████╗ ██████╗    
-        ██╔════╝██║  ██║██╔══██╗██╔══██╗██╔════╝    ██╔════╝██║████╗ ████║       ██║       ██╔════╝██╔═████╗   
-        ███████╗███████║███████║██████╔╝█████╗      ███████╗██║██╔████╔██║    ████████╗    ██║     ██║██╔██║   
-        ╚════██║██╔══██║██╔══██║██╔══██╗██╔══╝      ╚════██║██║██║╚██╔╝██║    ██╔═██╔═╝    ██║     ████╔╝██║   
-        ███████║██║  ██║██║  ██║██║  ██║███████╗    ███████║██║██║ ╚═╝ ██║    ██████║      ╚██████╗╚██████╔╝██╗
-        ╚═▀▀▀══╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝    ╚═▀▀▀══╝╚═╝╚═╝     ╚═╝    ╚═════╝       ╚═════╝ ╚═════╝ ╚═╝
-             
+ ___ ___ _______ _______ ___     ______       ___ ___ _______ _______     _______ ___ 
+ |   Y   |   _   |   _   |   |   |   _  \     |   Y   |   _   |   _   \   |   _   |   | 
+|.  |   |.  |   |.  l   |.  |   |.  |   \    |.  |   |.  1   |.  l   /   |.  1   |.  |
+|. / \  |.  |   |.  _   |.  |___|.  |    \   |. / \  |.  _   |.  _   1   |.  _   |.  |
+|:      |:  1   |:  |   |:  1   |:  1    /   |:      |:  |   |:  |   |   |:  |   |:  |
+|::.|:. |::.. . |::.|:. |::.. . |::.. . /    |::.|:. |::.|:. |::.|:. |   |::.|:. |::.|
+`--- ---`-------`--- ---`-------`------'     `--- ---`--- ---`--- ---'   `--- ---`---'
+
     </pre>
 
+    <img src="{{ url_for('static', filename='images/game-title.png') }}" alt="Game Title" class="game-title">
+
     <!-- Sticky Note for Player Stats (Draggable) -->
-    <div id="stats-container" class="stats-container">
+    <div id="stats-container" class="stats-container hidden">
         <h3>Stats</h3>
         <p>Name: <span id="player-name">-</span></p>
         <p>Age: <span id="age">-</span></p>
@@ -117,13 +120,13 @@
             <h3>Login</h3>
             <input type="text" id="login-username" placeholder="Username">
             <input type="password" id="login-password" placeholder="Password">
-            <input type="text" id="login-playername" placeholder="Player Name">
+            <input type="text" id="login-playername" placeholder="Character Name">
             <button onclick="login()">Login</button>
         </div>
         <div class="auth-content hidden" id="signup-form">
             <h3>Sign Up</h3>
             <input type="text" id="signup-username" placeholder="Username">
-            <input type="password" id="signup-password" placeholder="Password">
+            <input type="password" id="signup-password" placeholder="Password [8+ | 1A | 1@]">
             <button onclick="register()">Sign Up</button>
         </div>
     </div>
@@ -336,6 +339,9 @@
                 document.getElementById("login-button").style.opacity = "0.5";
                 document.getElementById("login-button").innerText = "Already Logged In";
 
+                // **Show the sticky note after login**
+                document.getElementById("stats-container").classList.remove("hidden");
+
                 // Update player stats
                 updateUserProfile();
             }
@@ -346,6 +352,9 @@
     function logout() {
         fetch("/logout", { method: "POST" }).then(res => res.json()).then(data => {
             alert(data.message);
+            // **Hide the sticky note after logout**
+            document.getElementById("stats-container").classList.add("hidden");
+            fetchActiveUsers(); // Refresh Player Activity after logging out
         });
     }
 
@@ -405,13 +414,10 @@
         .then(res => res.json())
         .then(data => {
             if (data.error) {
-                document.getElementById("player-name").innerText = "Login in Settings to Play";
-                document.getElementById("age").innerText = "";
-                document.getElementById("pay").innerText = "";
-                document.getElementById("wealth").innerText = "";
-                document.getElementById("location").innerText = "";
-                document.getElementById("country").innerText = "";
+                document.getElementById("stats-container").classList.add("hidden");
             } else {
+                document.getElementById("stats-container").classList.remove("hidden");
+
                 document.getElementById("player-name").innerText = data.player_name || "Unknown";
                 document.getElementById("age").innerText = data.age || "-";
                 document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
@@ -422,6 +428,11 @@
         })
         .catch(error => console.error("Error fetching user profile:", error));
     }
+
+    // Ensure the sticky note is shown if a user is already logged in
+    document.addEventListener("DOMContentLoaded", function () {
+        updateUserProfile();
+    });
 
     // Fetch user profile on page load and update every 10 seconds
     document.addEventListener("DOMContentLoaded", function () {
