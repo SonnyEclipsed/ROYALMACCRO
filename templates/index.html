@@ -449,10 +449,10 @@
             } else {
                 document.getElementById("stats-container").classList.remove("hidden");
 
-                document.getElementById("player-name").innerText = data.player_name || "Unknown";
+                document.getElementById("player-name").innerText = data.player_name || "-";
                 document.getElementById("age").innerText = data.age || "-";
-                document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "-";
-                document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "-";
+                document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "$0";
+                document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "$0";
                 document.getElementById("location").innerText = data.location || "-";
                 document.getElementById("country").innerText = data.country || "-";
             }
@@ -471,11 +471,15 @@
         setInterval(updateUserProfile, 1000);
     });
 
-    // Open the restart popup when the button is clicked
+    // Toggle the Restart Player Window when clicking its tab
     document.getElementById("restart-btn").addEventListener("click", () => {
-        document.getElementById("restart-popup").classList.remove("hidden");
+        let restartPopup = document.getElementById("restart-popup");
+        if (restartPopup.classList.contains("hidden")) {
+            restartPopup.classList.remove("hidden"); // Show the window
+        } else {
+            restartPopup.classList.add("hidden"); // Hide the window if it's already open
+        }
     });
-
     // Close the popup when cancel is clicked
     function closeRestartPopup() {
         document.getElementById("restart-popup").classList.add("hidden");
@@ -486,25 +490,35 @@
         let password = document.getElementById("restart-password").value;
         let newPlayerName = document.getElementById("restart-playername").value;
 
+        console.log("Restart button clicked!"); // DEBUGGING LINE
+
         if (!password || !newPlayerName) {
             alert("❌ Please enter your password and new player name.");
             return;
         }
 
+        console.log("Sending restart request..."); // DEBUGGING LINE
+
         fetch("/restart", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ password, newPlayerName })
+            body: JSON.stringify({ password: password, newPlayerName: newPlayerName }) 
         })
         .then(res => res.json())
         .then(data => {
+            console.log("Server response:", data); // DEBUGGING LINE
+
             if (data.error) {
                 alert("❌ " + data.error);
             } else {
                 alert("✅ Your stats have been reset!");
-                location.reload(); // Refresh the page to reflect changes
+
+                // Close restart popup and refresh user data
+                document.getElementById("restart-popup").classList.add("hidden");
+                updateUserProfile(); // Refresh stats on sticky note
             }
-        });
+        })
+        .catch(error => console.error("Error during restart:", error));
     }
 
     // Function to check if user is logged in and show/hide settings buttons

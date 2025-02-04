@@ -237,7 +237,7 @@ def get_user_status():
     if "user_id" in session:
         return jsonify({"logged_in": True})
     return jsonify({"logged_in": False})
-    
+
 @app.route("/restart", methods=["POST"])
 def restart():
     if "user_id" not in session:
@@ -247,33 +247,45 @@ def restart():
     password = data.get("password")
     new_player_name = data.get("newPlayerName")
 
+    print(f"🔍 Received restart request: password={password}, newPlayerName={new_player_name}")  # DEBUGGING
+
     if not password or not new_player_name:
         return jsonify({"error": "Missing password or player name"}), 400
 
     user_id = session["user_id"]
+
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+
+        # ✅ Ensure the user exists before proceeding
+        cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        # ✅ Verify the password
+        if not bcrypt.checkpw(password.encode('utf-8'), user[0].encode('utf-8')):
+            return jsonify({"error": "Incorrect password"}), 401
+
+        # ✅ Correct SQL query (No duplicate assignments)
+        cursor.execute("""
+            UPDATE user_profiles 
+            SET player_name = %s, user_balance = 0 
+            WHERE username = (SELECT username FROM users WHERE id = %s)
+        """, (new_player_name, user_id))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        print("✅ Stats reset successfully!")  # DEBUGGING
+        return jsonify({"message": "Stats reset successfully!"})
+
+    except Exception as e:
+        print("❌ Error during restart:", e)  # DEBUGGING
+        return jsonify({"error": "An error occurred"}), 500
     
-    conn = get_db()
-    cursor = conn.cursor()
-
-    # Check if password is correct
-    cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
-    user = cursor.fetchone()
-    if not user or not bcrypt.checkpw(password.encode('utf-8'), user[0].encode('utf-8')):
-        return jsonify({"error": "Incorrect password"}), 401
-
-    # Reset financial stats in user_profiles but keep new player name
-    cursor.execute("""
-        UPDATE user_profiles 
-        SET player_name = %s, user_balance = 0, user_salary = 0 
-        WHERE user_id = %s
-    """, (new_player_name, user_id))
-
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-    return jsonify({"message": "Stats reset successfully!"})
-
 @app.route('/')
 def home():
     return render_template("index.html")  # Serve index.html instead of plain text
