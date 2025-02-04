@@ -256,7 +256,15 @@
         }
 
         // Refresh Active Players Every Second
-        setInterval(fetchActiveUsers, 1000);
+        setInterval(() => {
+            fetch("/get_user_status")
+            .then(res => res.json())
+            .then(data => {
+                if (data.logged_in) {
+                    updateUserProfile(); // ✅ Only update profile if logged in
+                }
+            });
+        }, 5000); // Runs every 5 seconds
 
         // Run on page load
         document.addEventListener("DOMContentLoaded", fetchActiveUsers);
@@ -441,23 +449,32 @@
     }
 
     function updateUserProfile() {
-        fetch("/get_user_profile")
+        fetch("/get_user_status")
         .then(res => res.json())
         .then(data => {
-            if (data.error) {
-                document.getElementById("stats-container").classList.add("hidden");
-            } else {
-                document.getElementById("stats-container").classList.remove("hidden");
-
-                document.getElementById("player-name").innerText = data.player_name || "-";
-                document.getElementById("age").innerText = data.age || "-";
-                document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "$0";
-                document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "$0";
-                document.getElementById("location").innerText = data.location || "-";
-                document.getElementById("country").innerText = data.country || "-";
+            if (!data.logged_in) {
+                console.warn("User not logged in. Skipping updateUserProfile.");
+                return; // ✅ Stop execution if the user is not logged in
             }
+            fetch("/get_user_profile")
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById("stats-container").classList.add("hidden");
+                } else {
+                    document.getElementById("stats-container").classList.remove("hidden");
+
+                    document.getElementById("player-name").innerText = data.player_name || "-";
+                    document.getElementById("age").innerText = data.age || "-";
+                    document.getElementById("pay").innerText = data.balance ? `$${data.balance}` : "$0";
+                    document.getElementById("wealth").innerText = data.balance ? `$${data.balance}` : "$0";
+                    document.getElementById("location").innerText = data.location || "-";
+                    document.getElementById("country").innerText = data.country || "-";
+                }
+            })
+            .catch(error => console.error("Error fetching user profile:", error));
         })
-        .catch(error => console.error("Error fetching user profile:", error));
+        .catch(error => console.error("Error checking login status:", error));
     }
 
     // Ensure the sticky note is shown if a user is already logged in
