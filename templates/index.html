@@ -103,10 +103,11 @@
     <div id="settings-container">
         <button id="settings-btn">⚙️ Settings</button>
         <div id="settings-menu" class="hidden">
+            <button id="show-auth">User Login</button>
             <button id="show-activity">Active Players</button>
             <button id="show-events">Game Events</button>
-            <button id="show-auth">User Login</button>
             <button onclick="logout()">Logout</button>
+            <button id="restart-btn">Restart From Scratch</button>
         </div>
     </div>
 
@@ -141,6 +142,19 @@
     <div id="event-log" class="activity-window hidden">
         <div id="event-log-header" class="drag-handle">Game Events</div>
         <ul id="event-list"></ul>
+    </div>
+
+    <!-- Restart Confirmation Popup (Hidden by Default) -->
+    <div id="restart-popup" class="popup hidden">
+        <h3>ARE YOU SURE?</h3>
+        <p>If you are in a game, ALL YOUR DATA WILL BE DELETED.</p>
+        <p>Confirm your password and enter a new player name:</p>
+        
+        <input type="password" id="restart-password" placeholder="Enter Password">
+        <input type="text" id="restart-playername" placeholder="New Player Name">
+        
+        <button onclick="confirmRestart()">Confirm Restart</button>
+        <button onclick="closeRestartPopup()">Cancel</button>
     </div>
     
     <script>
@@ -439,6 +453,42 @@
         updateUserProfile();
         setInterval(updateUserProfile, 1000);
     });
+
+    // Open the restart popup when the button is clicked
+    document.getElementById("restart-btn").addEventListener("click", () => {
+        document.getElementById("restart-popup").classList.remove("hidden");
+    });
+
+    // Close the popup when cancel is clicked
+    function closeRestartPopup() {
+        document.getElementById("restart-popup").classList.add("hidden");
+    }
+
+    // Confirm restart and send data to server
+    function confirmRestart() {
+        let password = document.getElementById("restart-password").value;
+        let newPlayerName = document.getElementById("restart-playername").value;
+
+        if (!password || !newPlayerName) {
+            alert("❌ Please enter your password and new player name.");
+            return;
+        }
+
+        fetch("/restart", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password, newPlayerName })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert("❌ " + data.error);
+            } else {
+                alert("✅ Your stats have been reset!");
+                location.reload(); // Refresh the page to reflect changes
+            }
+        });
+    }
 
     </script>    
 

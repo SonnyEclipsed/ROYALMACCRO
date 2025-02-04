@@ -231,6 +231,42 @@ def get_user_profile():
         })
     else:
         return jsonify({"error": "User not found"}), 404
+    
+@app.route("/restart", methods=["POST"])
+def restart():
+    if "user_id" not in session:
+        return jsonify({"error": "User not logged in"}), 401
+
+    data = request.json
+    password = data.get("password")
+    new_player_name = data.get("newPlayerName")
+
+    if not password or not new_player_name:
+        return jsonify({"error": "Missing password or player name"}), 400
+
+    user_id = session["user_id"]
+    
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Check if password is correct
+    cursor.execute("SELECT password_hash FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    if not user or not bcrypt.checkpw(password.encode('utf-8'), user[0].encode('utf-8')):
+        return jsonify({"error": "Incorrect password"}), 401
+
+    # Reset financial stats in user_profiles but keep new player name
+    cursor.execute("""
+        UPDATE user_profiles 
+        SET player_name = %s, user_balance = 0, user_salary = 0 
+        WHERE user_id = %s
+    """, (new_player_name, user_id))
+
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "Stats reset successfully!"})
 
 @app.route('/')
 def home():
