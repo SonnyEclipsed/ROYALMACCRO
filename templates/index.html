@@ -387,6 +387,8 @@
             alert(data.message);
             // **Hide the sticky note after logout**
             document.getElementById("stats-container").classList.add("hidden");
+            document.getElementById("login-prompt").classList.remove("hidden");
+            document.getElementById("matrix-canvas").classList.remove("hidden");
             fetchActiveUsers(); // Refresh Player Activity after logging out
             // **Hide the settings menu immediately after logout**
             checkLoginStatus();
