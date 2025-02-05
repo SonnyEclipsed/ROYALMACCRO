@@ -71,6 +71,13 @@
 
     <img src="{{ url_for('static', filename='images/game-title.png') }}" alt="Game Title" class="game-title">
 
+    <!-- Blinking Cursor -->
+    <div id="login-prompt" 
+        <p>Login in settings...<span class="blinking-cursor">|</span></p>
+    </div>
+
+    <script src="static/js/script.js"></script>
+    
     <!-- Sticky Note for Player Stats (Draggable) -->
     <div id="stats-container" class="stats-container hidden">
         <h3>Stats</h3>
@@ -85,18 +92,7 @@
 
     <!-- Centered Game Prompt -->
     <div class="prompt-container">
-        <p id="prompt">You wake up in a strange city. What do you do?</p>
-        <button class="choice-button" onclick="submitChoice('Explore')">Explore</button>
-        <button class="choice-button" onclick="submitChoice('Talk to a Stranger')">Talk to a Stranger</button>
-        <button class="choice-button" onclick="submitChoice('Find Work')">Find Work</button>
-        <button class="choice-button" onclick="submitChoice('Rest')">Rest</button>
-        <button class="choice-button" onclick="enableTextInput()">Type Your Own Choice</button>
-
-        <!-- Input field for custom choice -->
-        <div id="custom-input">
-            <input type="text" id="custom-text" placeholder="Type your choice..." />
-            <button onclick="submitCustomInput()">Submit</button>
-        </div>
+        <canvas id="matrix-canvas"></canvas>
     </div>
 
     <!-- Settings Button & Menu -->
@@ -369,6 +365,13 @@
                 // **Show the settings menu immediately after login**
                 checkLoginStatus();
 
+                // Hide login prompt after successful login
+                document.getElementById("login-prompt").classList.add("hidden");
+
+
+                // Hide the Matrix effect
+                document.getElementById("matrix-canvas").classList.add("hidden");
+
                 // **Show the sticky note after login**
                 document.getElementById("stats-container").classList.remove("hidden");
 
@@ -438,6 +441,8 @@
         .then(data => {
             alert(data.message);
             fetchActiveUsers(); // Refresh Player Activity after logging out
+            // Hide the sticky note after logout
+            document.getElementById("stats-container").classList.add("hidden");
             // **Close all open popups and activity windows**
             document.getElementById("player-activity").classList.add("hidden");
             document.getElementById("event-log").classList.add("hidden");
@@ -555,6 +560,7 @@
 
     // Run the function on page load
     document.addEventListener("DOMContentLoaded", checkLoginStatus);
+    
 
     </script>    
 
