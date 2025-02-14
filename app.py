@@ -7,14 +7,16 @@ from uuid import uuid4
 
 app = Flask(__name__)
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+# SECRET_KEY = os.getenv("SECRET_KEY")
+app.secret_key = os.getenv("SECRET_KEY", "default_secret")
+
 DATABASE_URL = "postgresql://postgres:ehWWGfMGAdwhYBUjIhAFzrobcSVtqjtJ@monorail.proxy.rlwy.net:23609/railway"
 
 # DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Ensure they are set
-if SECRET_KEY is None or SECRET_KEY.strip() == "":
-    raise ValueError("❌ SECRET_KEY is missing! Make sure it's set in Railway's environment variables.")
+# if SECRET_KEY is None or SECRET_KEY.strip() == "":
+#     raise ValueError("❌ SECRET_KEY is missing! Make sure it's set in Railway's environment variables.")
 
 # if not DATABASE_URL:
 #     raise ValueError("❌ Missing environment variable! Set DATABASE_URL.")
