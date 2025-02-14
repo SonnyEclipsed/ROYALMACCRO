@@ -8,7 +8,12 @@ from uuid import uuid4
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "default_secret")
 
+SECRET_KEY = os.getenv("SECRET_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Ensure they are set
+if not DATABASE_URL or not SECRET_KEY:
+    raise ValueError("❌ Missing environment variables! Set DATABASE_URL and SECRET_KEY.")
 
 def get_db():
     """Connect to the PostgreSQL database."""
