@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moralocracy - Chat</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</head>
+<body>
+
+    <!-- Sticky Note for Player Stats -->
+    <div id="stats-container" class="stats-container">
+        <h3>Stats</h3>
+        <p>Name: <span id="player-name">-</span></p>
+        <p>Age: <span id="age">-</span></p>
+        <p>Daily Pay: <span id="pay">-</span></p>
+        <p>Savings Balance: <span id="wealth">-</span></p>
+        <p>Location: <span id="location">-</span></p>
+        <p>Country: <span id="country">-</span></p>
+    </div>
+
+    <!-- Chat Box -->
+    <div class="container-fluid chat-container">
+        <div class="row">
+            <div class="col-md-8 mx-auto chat-box" id="chat-box"></div>
+        </div>
+        <div class="row input-row">
+            <div class="col-md-8 mx-auto">
+                <div class="input-group">
+                    <input type="text" id="chat-input" class="form-control" placeholder="Type a message..." autofocus>
+                    <button class="btn btn-success" onclick="sendMessage()">Send</button>
+                    <button class="btn btn-danger" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

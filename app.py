@@ -9,6 +9,10 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "default_secret")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
+conn = psycopg2.connect(DATABASE_URL, sslmode="require")
+cursor = conn.cursor()
+cursor.execute("SELECT * FROM users;")
+print(cursor.fetchall())  # If this works, DB connection is fine
 
 def get_db():
     """Connect to the PostgreSQL database."""
@@ -47,6 +51,18 @@ def initialize_database():
     conn.close()
 
 initialize_database()
+
+@app.route("/")
+def login_page():
+    """ Serve the login page """
+    return render_template("index.html")
+
+@app.route("/chat")
+def chat_page():
+    """ Redirect if user is not logged in """
+    if "username" not in session:
+        return redirect(url_for("login_page"))
+    return render_template("chat.html")
 
 @app.route('/register', methods=['POST'])
 def register():

@@ -359,3 +359,74 @@ body {
 @keyframes blink {
     50% { opacity: 0; }
 }
+
+/* Chat Container */
+.chat-container {
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+/* Chat Box */
+.chat-box {
+    background-color: #222;
+    height: 75vh;
+    overflow-y: auto;
+    border-radius: 8px;
+    padding: 15px;
+    width: 100%;
+    max-width: 700px;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+}
+
+/* Messages */
+.user-message, .bot-message {
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    max-width: 80%;
+}
+
+.user-message {
+    background-color: #007bff;
+    color: white;
+    text-align: right;
+    align-self: flex-end;
+}
+
+.bot-message {
+    background-color: #333;
+    color: #ffffff;
+    text-align: left;
+    align-self: flex-start;
+}
+
+/* Input Row */
+.input-row {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    padding: 10px;
+    background-color: black;
+}
+
+/* Chat Input */
+#chat-input {
+    border-radius: 20px;
+}
+
+/* Scroll Behavior */
+.chat-box::-webkit-scrollbar {
+    width: 8px;
+}
+
+.chat-box::-webkit-scrollbar-thumb {
+    background-color: #4dff00;
+    border-radius: 4px;
+}
+
+.chat-box::-webkit-scrollbar-track {
+    background-color: #222;
+}
