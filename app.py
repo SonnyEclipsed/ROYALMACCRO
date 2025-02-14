@@ -8,7 +8,7 @@ from uuid import uuid4
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "default_secret")
 
-DATABASE_URL = "postgresql://postgres:ehWWGfMGAdwhYBUjIhAFzrobcSVtqjtJ@monorail.proxy.rlwy.net:23609/railway"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def get_db():
     """Connect to the PostgreSQL database."""
