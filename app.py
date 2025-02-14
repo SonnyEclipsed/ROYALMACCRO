@@ -11,7 +11,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Ensure they are set
-if not app.secret_key:
+if SECRET_KEY is None or SECRET_KEY.strip() == "":
     raise ValueError("❌ SECRET_KEY is missing! Make sure it's set in Railway's environment variables.")
 
 if not DATABASE_URL:
