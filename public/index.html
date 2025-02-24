@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Oregon Trail Interactive Game</title>
+  <title>Oregon Trail Multiplayer Prototype</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     body { font-family: sans-serif; margin: 20px; }
@@ -14,11 +14,37 @@
       background: #f9f9f9;
     }
     #narrativeOutput { height: 200px; }
-    #progressOutput, #inventoryOutput, #jsonOutput { height: 150px; }
+    #progressOutput, #inventoryOutput, #jsonOutput, #userChatOutput { height: 150px; }
   </style>
 </head>
 <body>
-  <h1>Oregon Trail Interactive Game</h1>
+  <h1>Oregon Trail Multiplayer Prototype</h1>
+
+  <!-- Character Info Form -->
+  <div class="section">
+    <h2>Character Information</h2>
+    <input id="characterName" placeholder="Enter your character name" style="width:70%;" />
+    <input id="characterInfo" placeholder="Optional: Additional info about you" style="width:70%;" />
+    <button onclick="updateCharacterInfo()">Update Info</button>
+  </div>
+
+  <!-- Room Lobby Section -->
+  <div class="section" id="lobbySection">
+    <h2>Room Lobby</h2>
+    <input id="roomInput" placeholder="Enter room ID (e.g., room1)" style="width:70%;" />
+    <button onclick="createOrJoinRoom()">Create/Join Room</button>
+    <div id="roomInfo"></div>
+  </div>
+
+  <!-- Leader Controls (shown only to room leader) -->
+  <div class="section" id="leaderControls" style="display:none;">
+    <button onclick="startGame()">Start Game</button>
+    <br/><br/>
+    <button onclick="startDecisionPhaseHost()">Start Decision Phase Timer</button>
+    <br/><br/>
+    <button onclick="pauseTimer()">Pause Timer</button>
+    <button onclick="resumeTimer()">Resume Timer</button>
+  </div>
 
   <!-- Narrative Section -->
   <div class="section">
@@ -26,11 +52,20 @@
     <div id="narrativeOutput" class="outputBox"></div>
   </div>
 
-  <!-- Command Input directly below Narrative -->
+  <!-- Command Input for Interactive Narrative -->
   <div class="section">
-    <h2>Your Command</h2>
-    <input id="commandInput" placeholder="Enter your command here" style="width:70%;" />
-    <button onclick="sendCommand()">Send Command</button>
+    <h2>Your Response</h2>
+    <input id="commandInput" placeholder="Enter your response here" style="width:70%;" />
+    <button onclick="sendResponse()">Send Response</button>
+    <p>Time remaining: <span id="timerDisplay">60</span></p>
+  </div>
+
+  <!-- User Chat Section -->
+  <div class="section">
+    <h2>User Chat</h2>
+    <div id="userChatOutput" class="outputBox"></div>
+    <input id="userChatInput" placeholder="Enter chat message" style="width:70%;" />
+    <button onclick="sendUserChat()">Send Chat</button>
   </div>
 
   <!-- Progress Section -->
@@ -52,20 +87,46 @@
   </div>
 
   <script>
-    // For demonstration purposes, we use a fixed userId.
-    const userId = 'User1';
-
-    // Connect to the Oregon namespace.
+    let roomId = "";
+    let userId = ""; // Will be set after character info update.
+    let characterName = "";
     const socket = io('/oregon');
+    let timerInterval;
+    let timeRemaining = 60; // seconds
 
-    // Listen for narrative updates.
+    function updateCharacterInfo() {
+      characterName = document.getElementById('characterName').value;
+      const extraInfo = document.getElementById('characterInfo').value;
+      if (!characterName) {
+        alert("Please enter a character name.");
+        return;
+      }
+      // Use the chosen character name as userId.
+      userId = characterName;
+      socket.emit('update_character_info', { roomId, userId, info: { name: characterName, extra: extraInfo } });
+    }
+
+    function createOrJoinRoom() {
+      roomId = document.getElementById('roomInput').value;
+      if (!roomId) return;
+      socket.emit('join_room', { roomId, userId: userId || characterName || "Unnamed" });
+    }
+
+    socket.on('room_info', (data) => {
+      const roomInfo = document.getElementById('roomInfo');
+      roomInfo.innerHTML = `<p>Room ${data.roomId}: ${data.members}/8 members</p>`;
+    });
+
+    socket.on('room_leader', (data) => {
+      document.getElementById('leaderControls').style.display = "block";
+    });
+
     socket.on('narrative', (message) => {
       const narrativeOutput = document.getElementById('narrativeOutput');
       narrativeOutput.innerHTML += `<p>${message}</p>`;
       narrativeOutput.scrollTop = narrativeOutput.scrollHeight;
     });
 
-    // Listen for progress updates.
     socket.on('progress_update', (progress) => {
       const progressOutput = document.getElementById('progressOutput');
       progressOutput.innerHTML = `
@@ -75,7 +136,6 @@
       `;
     });
 
-    // Listen for inventory updates.
     socket.on('inventory_update', (inventory) => {
       const inventoryOutput = document.getElementById('inventoryOutput');
       inventoryOutput.innerHTML = `
@@ -88,18 +148,104 @@
       `;
     });
 
-    // Listen for full JSON updates.
     socket.on('json_update', (state) => {
       const jsonOutput = document.getElementById('jsonOutput');
       jsonOutput.textContent = JSON.stringify(state, null, 2);
     });
 
-    // Function to send a command.
-    function sendCommand() {
+    socket.on('user_chat_update', (data) => {
+      const chatOutput = document.getElementById('userChatOutput');
+      chatOutput.innerHTML += `<p><strong>${data.userId}:</strong> ${data.message}</p>`;
+      chatOutput.scrollTop = chatOutput.scrollHeight;
+    });
+
+    // Timer events from server.
+    socket.on('start_timer', (data) => {
+      resetTimer(data.remaining || 60);
+    });
+    socket.on('pause_timer', (data) => {
+      pauseTimerClient(data.remaining);
+    });
+    socket.on('resume_timer', (data) => {
+      resumeTimerClient(data.remaining);
+    });
+    socket.on('update_timer_display', (data) => {
+      document.getElementById('timerDisplay').textContent = data.text;
+      if (data.text === "Generating Response...") {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+    });
+
+    function sendResponse() {
       const command = document.getElementById('commandInput').value;
-      if (!command) return;
-      socket.emit('chat_message', { userId, message: command });
+      if (!command || !roomId) return;
+      socket.emit('room_response', { roomId, userId, message: command });
       document.getElementById('commandInput').value = "";
+    }
+
+    function sendUserChat() {
+      const msg = document.getElementById('userChatInput').value;
+      if (!msg || !roomId) return;
+      socket.emit('user_chat_message', { roomId, userId, message: msg });
+      document.getElementById('userChatInput').value = "";
+    }
+
+    function startGame() {
+      if (!roomId) return;
+      socket.emit('start_game', { roomId });
+    }
+
+    // Host-triggered: Start decision phase timer.
+    function startDecisionPhaseHost() {
+      if (!roomId) return;
+      socket.emit('start_decision_phase', { roomId, userId });
+    }
+
+    function pauseTimer() {
+      if (!roomId) return;
+      socket.emit('pause_timer', { roomId });
+    }
+    function resumeTimer() {
+      if (!roomId) return;
+      socket.emit('resume_timer', { roomId });
+    }
+
+    // Timer functions on client.
+    function resetTimer(startFrom = 60) {
+      timeRemaining = startFrom;
+      document.getElementById('timerDisplay').textContent = timeRemaining;
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeRemaining--;
+        document.getElementById('timerDisplay').textContent = timeRemaining;
+        if (timeRemaining <= 0) {
+          clearInterval(timerInterval);
+        }
+      }, 1000);
+    }
+    function pauseTimerClient(remaining) {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      document.getElementById('timerDisplay').textContent = remaining;
+      timeRemaining = remaining;
+    }
+    function resumeTimerClient(remaining) {
+      // 'remaining' should already be in seconds.
+      timeRemaining = remaining;
+      document.getElementById('timerDisplay').textContent = timeRemaining;
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeRemaining--;
+        document.getElementById('timerDisplay').textContent = timeRemaining;
+        if (timeRemaining <= 0) {
+          clearInterval(timerInterval);
+        }
+      }, 1000);
     }
   </script>
 </body>
