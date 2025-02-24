@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Oregon Trail Interactive Game</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    .section { margin-bottom: 30px; }
+    .outputBox {
+      border: 1px solid #ccc;
+      padding: 10px;
+      overflow-y: auto;
+      background: #f9f9f9;
+    }
+    #narrativeOutput { height: 200px; }
+    #progressOutput, #inventoryOutput, #jsonOutput { height: 150px; }
+  </style>
+</head>
+<body>
+  <h1>Oregon Trail Interactive Game</h1>
+
+  <!-- Narrative Section -->
+  <div class="section">
+    <h2>Narrative</h2>
+    <div id="narrativeOutput" class="outputBox"></div>
+  </div>
+
+  <!-- Command Input directly below Narrative -->
+  <div class="section">
+    <h2>Your Command</h2>
+    <input id="commandInput" placeholder="Enter your command here" style="width:70%;" />
+    <button onclick="sendCommand()">Send Command</button>
+  </div>
+
+  <!-- Progress Section -->
+  <div class="section">
+    <h2>Progress</h2>
+    <div id="progressOutput" class="outputBox"></div>
+  </div>
+
+  <!-- Inventory Section -->
+  <div class="section">
+    <h2>Inventory</h2>
+    <div id="inventoryOutput" class="outputBox"></div>
+  </div>
+
+  <!-- JSON Code Section -->
+  <div class="section">
+    <h2>JSON Code</h2>
+    <pre id="jsonOutput" class="outputBox"></pre>
+  </div>
+
+  <script>
+    // For demonstration purposes, we use a fixed userId.
+    const userId = 'User1';
+
+    // Connect to the Oregon namespace.
+    const socket = io('/oregon');
+
+    // Listen for narrative updates.
+    socket.on('narrative', (message) => {
+      const narrativeOutput = document.getElementById('narrativeOutput');
+      narrativeOutput.innerHTML += `<p>${message}</p>`;
+      narrativeOutput.scrollTop = narrativeOutput.scrollHeight;
+    });
+
+    // Listen for progress updates.
+    socket.on('progress_update', (progress) => {
+      const progressOutput = document.getElementById('progressOutput');
+      progressOutput.innerHTML = `
+        <p><strong>Date:</strong> ${progress.currentDate.day} ${progress.currentDate.month}</p>
+        <p><strong>Route Miles:</strong> ${progress.routeProgress.miles}</p>
+        <p><strong>Pace:</strong> ${progress.pace}, <strong>Rations:</strong> ${progress.rations}</p>
+      `;
+    });
+
+    // Listen for inventory updates.
+    socket.on('inventory_update', (inventory) => {
+      const inventoryOutput = document.getElementById('inventoryOutput');
+      inventoryOutput.innerHTML = `
+        <p><strong>Oxen:</strong> ${inventory.oxen}</p>
+        <p><strong>Food:</strong> ${inventory.food}</p>
+        <p><strong>Clothes:</strong> ${inventory.clothes}</p>
+        <p><strong>Bullets:</strong> ${inventory.bullets}</p>
+        <p><strong>Wagon Parts:</strong> ${inventory.wagonParts}</p>
+        <p><strong>Money:</strong> ${inventory.money}</p>
+      `;
+    });
+
+    // Listen for full JSON updates.
+    socket.on('json_update', (state) => {
+      const jsonOutput = document.getElementById('jsonOutput');
+      jsonOutput.textContent = JSON.stringify(state, null, 2);
+    });
+
+    // Function to send a command.
+    function sendCommand() {
+      const command = document.getElementById('commandInput').value;
+      if (!command) return;
+      socket.emit('chat_message', { userId, message: command });
+      document.getElementById('commandInput').value = "";
+    }
+  </script>
+</body>
+</html>
