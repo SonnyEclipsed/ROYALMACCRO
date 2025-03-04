@@ -25,6 +25,7 @@
     <h2>Character Information</h2>
     <input id="characterName" placeholder="Enter your character name" style="width:70%;" />
     <input id="characterInfo" placeholder="Optional: Additional info about you" style="width:70%;" />
+    <input id="characterSkills" placeholder="Enter your character skills" style="width:70%;" />
     <button onclick="updateCharacterInfo()">Update Info</button>
   </div>
 
@@ -86,6 +87,12 @@
     <pre id="jsonOutput" class="outputBox"></pre>
   </div>
 
+  <!-- Player Stats Section -->
+  <div class="section">
+    <h2>Player Stats</h2>
+    <div id="playerStatsOutput" class="outputBox"></div>
+  </div>
+
   <script>
     let roomId = "";
     let userId = ""; // Will be set after character info update.
@@ -97,19 +104,20 @@
     function updateCharacterInfo() {
       characterName = document.getElementById('characterName').value;
       const extraInfo = document.getElementById('characterInfo').value;
+      const characterSkills = document.getElementById('characterSkills').value;
       if (!characterName) {
         alert("Please enter a character name.");
         return;
       }
-      // Use the chosen character name as userId.
       userId = characterName;
-      socket.emit('update_character_info', { roomId, userId, info: { name: characterName, extra: extraInfo } });
+      const info = { name: characterName, extra: extraInfo, skills: characterSkills };
+      socket.emit('update_character_info', { roomId, userId, info });
     }
 
     function createOrJoinRoom() {
       roomId = document.getElementById('roomInput').value;
       if (!roomId) return;
-      socket.emit('join_room', { roomId, userId: userId || characterName || "Unnamed" });
+      socket.emit('join_room', { roomId, userId: userId || characterName || "Unnamed", info: {} });
     }
 
     socket.on('room_info', (data) => {
@@ -153,13 +161,25 @@
       jsonOutput.textContent = JSON.stringify(state, null, 2);
     });
 
+    socket.on('player_stats_update', (playerInfo) => {
+      const statsOutput = document.getElementById('playerStatsOutput');
+      let statsHTML = "";
+      for (const [uid, info] of Object.entries(playerInfo)) {
+        if(info.name.trim().toLowerCase() === "unnamed") continue;
+        statsHTML += `<p><strong>Name:</strong> ${info.name} | <strong>Skills:</strong> ${info.info.skills || "N/A"}</p>`;
+        if(info.inventory && Object.keys(info.inventory).length > 0) {
+          statsHTML += `<p><strong>Inventory:</strong> ${JSON.stringify(info.inventory)}</p>`;
+        }
+      }
+      statsOutput.innerHTML = statsHTML;
+    });
+
     socket.on('user_chat_update', (data) => {
       const chatOutput = document.getElementById('userChatOutput');
       chatOutput.innerHTML += `<p><strong>${data.userId}:</strong> ${data.message}</p>`;
       chatOutput.scrollTop = chatOutput.scrollHeight;
     });
 
-    // Timer events from server.
     socket.on('start_timer', (data) => {
       resetTimer(data.remaining || 60);
     });
@@ -171,7 +191,7 @@
     });
     socket.on('update_timer_display', (data) => {
       document.getElementById('timerDisplay').textContent = data.text;
-      if (data.text === "Generating Response...") {
+      if (data.text === "Generating Response..." || data.text === "Generating...") {
         if (timerInterval) {
           clearInterval(timerInterval);
           timerInterval = null;
@@ -198,7 +218,6 @@
       socket.emit('start_game', { roomId });
     }
 
-    // Host-triggered: Start decision phase timer.
     function startDecisionPhaseHost() {
       if (!roomId) return;
       socket.emit('start_decision_phase', { roomId, userId });
@@ -213,7 +232,6 @@
       socket.emit('resume_timer', { roomId });
     }
 
-    // Timer functions on client.
     function resetTimer(startFrom = 60) {
       timeRemaining = startFrom;
       document.getElementById('timerDisplay').textContent = timeRemaining;
@@ -235,7 +253,6 @@
       timeRemaining = remaining;
     }
     function resumeTimerClient(remaining) {
-      // 'remaining' should already be in seconds.
       timeRemaining = remaining;
       document.getElementById('timerDisplay').textContent = timeRemaining;
       if (timerInterval) clearInterval(timerInterval);

@@ -29,7 +29,7 @@ const rooms = {};
 function defaultGameState() {
   return {
     occupation: "Pioneer",
-    partyNames: [], // Will be set later based on player info.
+    partyNames: [], // Will be set later based on active player info.
     currentDate: { day: 1, month: "April" },
     routeProgress: { miles: 0, landmarks: [] },
     inventory: { oxen: 4, food: 500, clothes: 50, bullets: 100, wagonParts: 3, money: 800 },
@@ -50,26 +50,20 @@ function rollDice() {
 
 /********************************************************************************
  * Function: updatePartyNames
- * Updates the room's game state's partyNames array using player information.
- * If fewer than 4 players are present, default NPC names fill the rest.
+ * Updates the room's game state's partyNames array using only active player names.
+ * Any player with the name "Unnamed" is ignored.
  ********************************************************************************/
 function updatePartyNames(room) {
-  const defaultNPCs = ["NPC1", "NPC2", "NPC3", "NPC4"];
   const playerInfos = room.playerInfo || {};
-  const playerNames = Object.values(playerInfos).map(info => info.name);
-  let partyNames = [];
-  if (playerNames.length < 4) {
-    partyNames = playerNames.concat(defaultNPCs.slice(0, 4 - playerNames.length));
-  } else {
-    partyNames = playerNames;
-  }
-  room.gameState.partyNames = partyNames;
+  const activePlayerNames = Object.values(playerInfos)
+    .map(info => info.name)
+    .filter(name => name.trim() !== "" && name.toLowerCase() !== "unnamed");
+  room.gameState.partyNames = activePlayerNames;
 }
 
 /********************************************************************************
  * Function: startDecisionPhase
  * Called by the host to start a decision phase timer.
- * It resets responses, sets the decision phase active, and starts a 60-second timer.
  ********************************************************************************/
 function startDecisionPhase(roomId) {
   const room = rooms[roomId];
@@ -78,45 +72,38 @@ function startDecisionPhase(roomId) {
   room.responses = {}; // Reset previous responses.
   room.decisionPhaseActive = true;
   
-  // Broadcast a generic decision prompt to all players.
   io.of('/oregon').to(roomId).emit('narrative', "Decision phase started. Please submit your responses.");
   
-  // Record timer information.
   room.timerStart = Date.now();
-  room.timerDuration = 60000; // 60,000 ms = 60 seconds.
+  room.timerDuration = 60000; // 60 seconds.
   room.timer = setTimeout(() => {
     compileRoomResponses(roomId);
   }, room.timerDuration);
   
-  // Tell all clients to start their timer display.
   io.of('/oregon').to(roomId).emit('start_timer', { remaining: 60 });
 }
 
 /********************************************************************************
  * Function: compileRoomResponses
- * Aggregates responses when either all players have responded or the timer expires,
- * then calls ChatGPT to generate the narrative update.
+ * Aggregates responses and calls ChatGPT to generate the narrative update.
  ********************************************************************************/
 async function compileRoomResponses(roomId) {
   const room = rooms[roomId];
   if (!room || !room.decisionPhaseActive) return;
   
-  // Clear timer if still active.
   if (room.timer) {
     clearTimeout(room.timer);
     room.timer = null;
   }
   room.decisionPhaseActive = false;
   
-  // Determine which players responded.
   const responders = Object.keys(room.responses);
-  // Use stored playerIds to determine non-responders.
   const nonResponders = room.playerIds ? room.playerIds.filter(uid => !responders.includes(uid)) : [];
   
   let aggregatedResponse = "";
   const responseCounts = {};
   
-  // Count each normalized response.
+  // Build aggregated responses and note which active player said what.
   for (let uid in room.responses) {
     let resp = room.responses[uid].trim().toLowerCase();
     responseCounts[resp] = (responseCounts[resp] || 0) + 1;
@@ -124,59 +111,71 @@ async function compileRoomResponses(roomId) {
   
   const uniqueResponses = Object.keys(responseCounts);
   
-  // If exactly two unique responses have equal counts, resolve tie with a dice roll.
+  // If exactly two unique responses and they are not mutually exclusive,
+  // instruct to execute both actions concurrently.
   if (uniqueResponses.length === 2) {
-    const counts = Object.values(responseCounts);
-    if (counts[0] === counts[1]) {
-      const dice = rollDice();
-      const chosenResponse = dice <= 3 ? uniqueResponses[0] : uniqueResponses[1];
-      aggregatedResponse = `[Conflict resolved]: Decision chosen: "${chosenResponse}" (Dice roll: ${dice}).\n`;
-    } else {
-      // Otherwise, simply list all responses.
-      for (let uid in room.responses) {
-        aggregatedResponse += `[${uid}]: ${room.responses[uid]}\n`;
-      }
-    }
-  } else {
-    // If more than two unique responses, simply list all responses.
+    // For each response, list active players and their decisions.
+    aggregatedResponse = `Active decisions:\n`;
     for (let uid in room.responses) {
-      aggregatedResponse += `[${uid}]: ${room.responses[uid]}\n`;
+      let playerName = room.playerInfo[uid] ? room.playerInfo[uid].name : uid;
+      aggregatedResponse += `- ${playerName} (${JSON.stringify(room.playerInfo[uid].info)}) chose: "${room.responses[uid]}"\n`;
+    }
+    aggregatedResponse += `Both decisions are valid and can be taken concurrently. Roll a dice for each decision to determine its overall effectiveness using the standard outcome scale.\n`;
+  } else {
+    // If more than two or a single decision, list them normally.
+    for (let uid in room.responses) {
+      let playerName = room.playerInfo[uid] ? room.playerInfo[uid].name : uid;
+      aggregatedResponse += `[${playerName}]: ${room.responses[uid]}\n`;
     }
   }
   
-  // Append awake/asleep status.
-  aggregatedResponse += `\nAwake: ${responders.join(", ") || "None"}.\n`;
-  if (nonResponders.length > 0) {
-    aggregatedResponse += `Asleep: ${nonResponders.join(", ")}.\n`;
+  const awakeNames = responders.map(uid => room.playerInfo[uid] ? room.playerInfo[uid].name : uid);
+  const asleepNames = nonResponders.map(uid => room.playerInfo[uid] ? room.playerInfo[uid].name : uid);
+  aggregatedResponse += `\nAwake: ${awakeNames.join(", ") || "None"}.\n`;
+  if (asleepNames.length > 0) {
+    aggregatedResponse += `Asleep: ${asleepNames.join(", ")}.\n`;
   }
   
-  // Build the system prompt for ChatGPT.
+  // Updated system prompt for decision resolution:
   const systemPrompt = `
 You are an interactive narrative engine for an Oregon Trail game.
 The current game state is:
 ${JSON.stringify(room.gameState)}
 The party consists of: ${JSON.stringify(room.gameState.partyNames)}
+Detailed character attributes (from active players) are available in the player info.
 The aggregated responses from the players in this decision phase are:
 ${aggregatedResponse}
-Based on these responses, continue the story and update the game state.
+
+⚔️ **Gameplay Style Guidelines (from Oregon Trail RPG Design ):**
+- Your narrative MUST be chock-full of emojis (🎲, 😱, ⚠️, 😎, etc.).
+- Include detailed dice roll outcomes using this scale:
+   • 1-3: poor roll 😞,
+   • 4-5: mediocre roll 😐,
+   • 6-7: good roll 😃,
+   • 8-10: spectacular roll 🤩.
+- The narrative should feel dangerous, creative, and realistic—full of peril and adventure.
+- **IMPORTANT:** Only the active players (with proper, non-"Unnamed" names) form the true decision-making team. Address them collectively as the "main characters" and weave in their full character attributes (name, skills, extra info) to make the narrative personal.
+- **When conflicting decisions are present:**
+    1. List each active player's decision along with their detailed character info.
+    2. If both decisions can be taken concurrently (e.g. one player decides to shoot while another decides to hide), narrate both actions separately. For each decision, use a fair dice roll (using a range from 10 to 20 that is evenly divisible by the number of active players) to determine selection if needed—remember, no choice is inherently bad.
+    3. Then, for each executed decision, roll another dice (using the standard outcome scale) to determine its overall effectiveness.
+    4. Note any logical limitations (e.g., if an invisibility ring is used, explain that it only affects the character and not the supplies or others).
+- Structure your response as follows:
+   • Paragraphs 1 to n: Analyze and discuss the conflicting decisions with full character details.
+   • Paragraphs (n+1) to (n+f): Describe the resolution process, including concurrent execution of both decisions with separate dice rolls for each decision’s effectiveness.
+   • Final Paragraph: Continue the narrative and end with an actionable question for the crew.
 Respond in two parts separated by the delimiter "\n===JSON===\n".
-The first part is the narrative, and the second part is valid JSON representing the updated game state.
+The first part is the narrative; the second part is valid JSON representing the updated game state.
 If a risky decision is involved (e.g., "shoot"), include keys "riskAction" (string) and leave "riskOutcome" as null.
 Do not refer to any player as "Guest"; always use their chosen names.
-All seemingly unrelated actions should be respected and carried out, unless they are impossible given the circumstances.
-If an action's success is uncertain, roll a dice to determine the outcome and include the dice result in the narrative.
-Ensure the narrative ends with a moral dilemma or an actionable question for the crew.
-  `;
+`;
   
-  // Notify clients that the aggregated response is generating.
   io.of('/oregon').to(roomId).emit('update_timer_display', { text: "Generating Response..." });
   
   try {
     const response = await axios.post('https://api.openai.com/v1/chat/completions', {
       model: 'gpt-4',
-      messages: [
-        { role: 'system', content: systemPrompt }
-      ],
+      messages: [{ role: 'system', content: systemPrompt }],
       temperature: 0.8,
     }, {
       headers: {
@@ -204,10 +203,8 @@ Ensure the narrative ends with a moral dilemma or an actionable question for the
       return;
     }
     
-    // Do not automatically resolve risk here; riskOutcome remains null.
     room.gameState = { ...room.gameState, ...updatedState };
     
-    // If dice rolls were used for conflict resolution, they are already embedded in aggregatedResponse.
     io.of('/oregon').to(roomId).emit('narrative', narrative);
     emitRoomGameState(roomId);
     io.of('/oregon').to(roomId).emit('update_timer_display', { text: "Start Timer" });
@@ -232,7 +229,7 @@ io.of('/oregon').on('connection', (socket) => {
       clearTimeout(room.timer);
       room.timer = null;
       const elapsed = Date.now() - room.timerStart;
-      room.timerRemaining = room.timerDuration - elapsed; // in ms
+      room.timerRemaining = room.timerDuration - elapsed;
       const remainingSeconds = Math.floor(room.timerRemaining / 1000);
       console.log(`Room ${roomId}: Timer paused with ${remainingSeconds} seconds remaining.`);
       io.of('/oregon').to(roomId).emit('pause_timer', { remaining: remainingSeconds });
@@ -262,8 +259,7 @@ io.of('/oregon').on('connection', (socket) => {
 
 /********************************************************************************
  * Function: emitRoomGameState
- * Sends the current game state (progress, inventory, JSON, and room info)
- * to all clients in the room.
+ * Sends the current game state to all clients in the room.
  ********************************************************************************/
 function emitRoomGameState(roomId) {
   const room = rooms[roomId];
@@ -291,7 +287,7 @@ io.of('/oregon').on('connection', (socket) => {
   // Handler for joining a room.
   socket.on('join_room', (data) => {
     const roomId = data.roomId;
-    const chosenName = data.chosenName || data.userId; // Use chosen name if provided.
+    const chosenName = data.chosenName || data.userId;
     const userId = data.userId;
     socket.join(roomId);
     console.log(`Socket ${socket.id} (User: ${userId}, Name: ${chosenName}) joined room ${roomId}`);
@@ -316,8 +312,15 @@ io.of('/oregon').on('connection', (socket) => {
     }
     rooms[roomId].players.push(socket.id);
     rooms[roomId].playerIds.push(userId);
-    rooms[roomId].playerInfo[userId] = { name: chosenName, info: data.info || {} };
+    // Initialize player info.
+    rooms[roomId].playerInfo[userId] = { 
+      name: chosenName, 
+      info: data.info || {}, 
+      inventory: {} 
+    };
     updatePartyNames(rooms[roomId]);
+    
+    io.of('/oregon').to(roomId).emit('player_stats_update', rooms[roomId].playerInfo);
     
     if (rooms[roomId].gameState.gameStarted) {
       socket.emit('narrative', `${chosenName} stumbled upon the wagon as a hitchhiker!`);
@@ -339,8 +342,14 @@ io.of('/oregon').on('connection', (socket) => {
     const info = data.info;
     const room = rooms[roomId];
     if (!room) return;
-    room.playerInfo[userId] = { name: info.name || userId, info };
+    room.playerInfo[userId] = { 
+      name: info.name || userId, 
+      info, 
+      inventory: room.playerInfo[userId] ? room.playerInfo[userId].inventory : {} 
+    };
     updatePartyNames(room);
+    
+    io.of('/oregon').to(roomId).emit('player_stats_update', room.playerInfo);
   });
   
   // Handler for starting a decision phase.
@@ -364,18 +373,44 @@ io.of('/oregon').on('connection', (socket) => {
       return;
     }
     room.gameState.gameStarted = true;
+    io.of('/oregon').to(roomId).emit('update_timer_display', { text: "Generating..." });
     (async () => {
-      const initialPrompt = "The wagon train rolls out in the early morning light. You guide your oxen along the trail as the party—composed of your chosen characters—sets forth with hope, determination, and a sense of impending danger. Introduce your characters and their defined attributes, and set the scene for the perilous journey ahead. Then present your first major challenge, ending with a moral dilemma or an actionable question for the crew.";
+      // Build detailed character descriptions from active players.
+      let characterDescriptions = "";
+      for (const uid in room.playerInfo) {
+        const info = room.playerInfo[uid];
+        if (info.name.toLowerCase() !== "unnamed") {
+          characterDescriptions += `${info.name} (${JSON.stringify(info.info)}), `;
+        }
+      }
+      characterDescriptions = characterDescriptions.replace(/, $/, "");
+      
+      const initialPrompt = `Welcome to room ${roomId}! Your journey is about to begin.
+Your active pioneers, ${characterDescriptions}, are setting out on the Oregon Trail. Their wagon is loaded with essential supplies, and every detail of their character—skills, experience, and personal quirks—will shape their adventure. Introduce the crew personally, highlighting each pioneer’s unique attributes and strengths, and set the stage for the perils and wonders of the journey ahead. Then present your first major challenge, ending with a moral dilemma or actionable question for the entire team.`;
+      
       const systemPrompt = `
-You are an interactive narrative engine for an Oregon Trail game. The current game state is:
+You are an interactive narrative engine for an Oregon Trail game.
+The current game state is:
 ${JSON.stringify(room.gameState)}
 The party consists of: ${JSON.stringify(room.gameState.partyNames)}
-Based on the initial journey, create an expository narrative that introduces the crew's characters and their attributes, sets the scene for a dangerous journey ahead, and describes the first challenge (for example, a river crossing or an unexpected obstacle). Ensure the narrative ends with a moral dilemma or an actionable question for the crew.
+Include detailed character attributes (name, skills, extra info) for each active player to create a personal and engaging narrative.
+      
+⚔️ **Gameplay Style Guidelines (from Oregon Trail RPG Design ):**
+- Your narrative MUST be chock-full of emojis (🎲, 😱, ⚠️, 😎, etc.).
+- Include detailed dice roll outcomes using this scale:
+   • 1-3: poor roll 😞,
+   • 4-5: mediocre roll 😐,
+   • 6-7: good roll 😃,
+   • 8-10: spectacular roll 🤩.
+- The narrative should feel dangerous, creative, and realistic—full of peril and adventure.
+- **IMPORTANT:** Only the active players (those with proper, non-"Unnamed" names) form the true decision-making team. Address them collectively as the "main characters" and weave in their detailed character attributes to make the story personal.
+- Introduce each pioneer with their unique strengths, skills, and background details.
+- Then set the scene for the journey and present a major challenge ending with a moral dilemma or actionable question.
 Respond in two parts separated by the delimiter "\n===JSON===\n".
 The first part is the narrative; the second part is valid JSON representing the updated game state.
-If a risky decision is involved, include "riskAction" (string) and leave "riskOutcome" as null.
+If a risky decision is involved, include keys "riskAction" (string) and leave "riskOutcome" as null.
 Do not refer to any player as "Guest"; always use their chosen names.
-      `;
+`;
       try {
         const response = await axios.post('https://api.openai.com/v1/chat/completions', {
           model: 'gpt-4',
@@ -410,6 +445,7 @@ Do not refer to any player as "Guest"; always use their chosen names.
         room.gameState = { ...room.gameState, ...updatedState };
         io.of('/oregon').to(roomId).emit('narrative', narrative);
         emitRoomGameState(roomId);
+        io.of('/oregon').to(roomId).emit('update_timer_display', { text: "Start Timer" });
       } catch (error) {
         console.error("Error calling ChatGPT API for startGame in room", roomId, ":", error);
         io.of('/oregon').to(roomId).emit('narrative', "Error starting game.");
@@ -448,7 +484,6 @@ Do not refer to any player as "Guest"; always use their chosen names.
       const index = room.players.indexOf(socket.id);
       if (index !== -1) {
         room.players.splice(index, 1);
-        // Optionally update party names.
         updatePartyNames(room);
         if (room.leader === socket.id && room.players.length > 0) {
           room.leader = room.players[0];
