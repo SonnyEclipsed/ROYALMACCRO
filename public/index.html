@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <title>Oregon Trail Multiplayer Prototype</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="/socket.io/socket.io.js"></script>
   <style>
-    body { font-family: sans-serif; margin: 20px; }
-    .section { margin-bottom: 30px; }
     .outputBox {
       border: 1px solid #ccc;
       padding: 10px;
@@ -18,82 +18,97 @@
   </style>
 </head>
 <body>
-  <h1>Oregon Trail Multiplayer Prototype</h1>
+  <div class="container my-4">
+    <h1 class="mb-4">Oregon Trail Multiplayer Prototype</h1>
 
-  <!-- Character Info Form -->
-  <div class="section">
-    <h2>Character Information</h2>
-    <input id="characterName" placeholder="Enter your character name" style="width:70%;" />
-    <input id="characterInfo" placeholder="Optional: Additional info about you" style="width:70%;" />
-    <input id="characterSkills" placeholder="Enter your character skills" style="width:70%;" />
-    <button onclick="updateCharacterInfo()">Update Info</button>
+    <!-- Character Info Form -->
+    <div class="mb-4">
+      <h2>Character Information</h2>
+      <div class="mb-2">
+        <input id="characterName" type="text" class="form-control" placeholder="Enter your character name" />
+      </div>
+      <div class="mb-2">
+        <input id="characterInfo" type="text" class="form-control" placeholder="Optional: Additional info about you" />
+      </div>
+      <div class="mb-2">
+        <input id="characterSkills" type="text" class="form-control" placeholder="Enter your character skills" />
+      </div>
+      <button onclick="updateCharacterInfo()" class="btn btn-primary">Update Info</button>
+    </div>
+
+    <!-- Room Lobby Section -->
+    <div id="lobbySection" class="mb-4">
+      <h2>Room Lobby</h2>
+      <div class="mb-2">
+        <input id="roomInput" type="text" class="form-control" placeholder="Enter room ID (e.g., room1)" />
+      </div>
+      <button onclick="createOrJoinRoom()" class="btn btn-primary">Create/Join Room</button>
+      <div id="roomInfo" class="mt-2"></div>
+    </div>
+
+    <!-- Leader Controls -->
+    <div id="leaderControls" class="mb-4" style="display:none;">
+      <button onclick="startGame()" class="btn btn-success">Start Game</button>
+      <button onclick="startDecisionPhaseHost()" class="btn btn-warning">Start Decision Phase Timer</button>
+      <button onclick="pauseTimer()" class="btn btn-secondary">Pause Timer</button>
+      <button onclick="resumeTimer()" class="btn btn-secondary">Resume Timer</button>
+    </div>
+
+    <!-- Narrative Section -->
+    <div class="mb-4">
+      <h2>Narrative</h2>
+      <div id="narrativeOutput" class="outputBox"></div>
+    </div>
+
+    <!-- Command Input for Interactive Narrative -->
+    <div class="mb-4">
+      <h2>Your Response</h2>
+      <div class="input-group mb-2">
+        <input id="commandInput" type="text" class="form-control" placeholder="Enter your response here" />
+        <button onclick="sendResponse()" class="btn btn-primary">Send Response</button>
+      </div>
+      <p>Time remaining: <span id="timerDisplay">60</span></p>
+    </div>
+
+    <!-- User Chat Section -->
+    <div class="mb-4">
+      <h2>User Chat</h2>
+      <div id="userChatOutput" class="outputBox mb-2"></div>
+      <div class="input-group">
+        <input id="userChatInput" type="text" class="form-control" placeholder="Enter chat message" />
+        <button onclick="sendUserChat()" class="btn btn-primary">Send Chat</button>
+      </div>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="mb-4">
+      <h2>Progress</h2>
+      <div id="progressOutput" class="outputBox"></div>
+    </div>
+
+    <!-- Inventory Section -->
+    <div class="mb-4">
+      <h2>Inventory</h2>
+      <div id="inventoryOutput" class="outputBox"></div>
+    </div>
+
+    <!-- JSON Code Section -->
+    <div class="mb-4">
+      <h2>JSON Code</h2>
+      <pre id="jsonOutput" class="outputBox"></pre>
+    </div>
+
+    <!-- Player Stats Section -->
+    <div class="mb-4">
+      <h2>Player Stats</h2>
+      <div id="playerStatsOutput" class="outputBox"></div>
+    </div>
   </div>
 
-  <!-- Room Lobby Section -->
-  <div class="section" id="lobbySection">
-    <h2>Room Lobby</h2>
-    <input id="roomInput" placeholder="Enter room ID (e.g., room1)" style="width:70%;" />
-    <button onclick="createOrJoinRoom()">Create/Join Room</button>
-    <div id="roomInfo"></div>
-  </div>
-
-  <!-- Leader Controls (shown only to room leader) -->
-  <div class="section" id="leaderControls" style="display:none;">
-    <button onclick="startGame()">Start Game</button>
-    <br/><br/>
-    <button onclick="startDecisionPhaseHost()">Start Decision Phase Timer</button>
-    <br/><br/>
-    <button onclick="pauseTimer()">Pause Timer</button>
-    <button onclick="resumeTimer()">Resume Timer</button>
-  </div>
-
-  <!-- Narrative Section -->
-  <div class="section">
-    <h2>Narrative</h2>
-    <div id="narrativeOutput" class="outputBox"></div>
-  </div>
-
-  <!-- Command Input for Interactive Narrative -->
-  <div class="section">
-    <h2>Your Response</h2>
-    <input id="commandInput" placeholder="Enter your response here" style="width:70%;" />
-    <button onclick="sendResponse()">Send Response</button>
-    <p>Time remaining: <span id="timerDisplay">60</span></p>
-  </div>
-
-  <!-- User Chat Section -->
-  <div class="section">
-    <h2>User Chat</h2>
-    <div id="userChatOutput" class="outputBox"></div>
-    <input id="userChatInput" placeholder="Enter chat message" style="width:70%;" />
-    <button onclick="sendUserChat()">Send Chat</button>
-  </div>
-
-  <!-- Progress Section -->
-  <div class="section">
-    <h2>Progress</h2>
-    <div id="progressOutput" class="outputBox"></div>
-  </div>
-
-  <!-- Inventory Section -->
-  <div class="section">
-    <h2>Inventory</h2>
-    <div id="inventoryOutput" class="outputBox"></div>
-  </div>
-
-  <!-- JSON Code Section -->
-  <div class="section">
-    <h2>JSON Code</h2>
-    <pre id="jsonOutput" class="outputBox"></pre>
-  </div>
-
-  <!-- Player Stats Section -->
-  <div class="section">
-    <h2>Player Stats</h2>
-    <div id="playerStatsOutput" class="outputBox"></div>
-  </div>
-
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    // Your existing JavaScript code remains here.
     let roomId = "";
     let userId = ""; // Will be set after character info update.
     let characterName = "";
