@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}  # Make sure to define this in your .env file or set it in your environment.
+    depends_on:
+      - redis
+  redis:
+    image: redis:7.2.3
+    ports:
+      - "6379:6379"

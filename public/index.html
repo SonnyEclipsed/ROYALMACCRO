@@ -2,166 +2,566 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Oregon Trail Multiplayer Prototype</title>
+  <title>Wagon of Woe: Frontier Fury</title>
   <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="/socket.io/socket.io.js"></script>
   <style>
-    .outputBox {
-      border: 1px solid #ccc;
-      padding: 10px;
-      overflow-y: auto;
-      background: #f9f9f9;
+    /* Reset default margins/padding */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: #f5f5f5;
+      overflow: hidden; /* Prevent overall page scrolling */
     }
-    #narrativeOutput { height: 200px; }
-    #progressOutput, #inventoryOutput, #jsonOutput, #userChatOutput { height: 150px; }
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #eee;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0; /* Keep header from shrinking */
+    }
+    .title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin: 0;
+    }
+    /* MAIN CONTAINER: fill remaining vertical space, no scrolling at body level */
+    .main-container {
+      flex: 1;
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      overflow: hidden; /* no scroll here, we’ll scroll inside columns */
+    }
+    /* LEFT COLUMN: SETTINGS BUTTON */
+    .left-col {
+      width: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .btn-settings {
+      width: 60px;
+    }
+    #settingsMenu {
+      position: absolute;
+      top: 50px;
+      left: 0;
+      width: 160px;
+      background: #fafafa;
+      border: 1px solid #ccc;
+      box-shadow: 1px 1px 6px rgba(0,0,0,0.2);
+      display: none;
+      z-index: 2000;
+    }
+    #settingsMenu button {
+      width: 100%;
+      border: none;
+      text-align: left;
+      padding: 0.5rem;
+      background: #f0f0f0;
+      border-bottom: 1px solid #ccc;
+      cursor: pointer;
+    }
+    #settingsMenu button:hover {
+      background: #e0e0e0;
+    }
+    /* CENTER COLUMN: NARRATIVE */
+    .center-col {
+      flex: 3;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden; /* so we can have an internal scroll area */
+    }
+    .narrative-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #narrativeContainer {
+      background: #fff;
+      border: 1px solid #ccc;
+      flex: 1;
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden; /* container for the scrollable narrativeOutput */
+    }
+    #narrativeOutput {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    .response-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+    .response-row input {
+      flex: 1;
+    }
+    /* RIGHT COLUMN: stacked panels + trail */
+    .right-col {
+      flex: 2;
+      display: flex;
+      gap: 0.5rem;
+      overflow: hidden;
+      min-width: 320px;
+    }
+    .right-panels {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      overflow: hidden; 
+    }
+    /* Progress & Player Stats side by side */
+    .panels-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-shrink: 0; /* do not shrink below content */
+    }
+    .panels-row .panel-box {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+    }
+    /* Make Inventory taller (twice as tall) */
+    #inventoryPanel {
+      height: 240px;
+      overflow: auto;
+      margin-top: 0.5rem;
+      flex-shrink: 0;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+    }
+    /* User Chat is flexible to fill leftover vertical space */
+    #userChatPanel {
+      display: flex;
+      flex-direction: column;
+      margin-top: 0.5rem;
+      flex: 1; /* fill leftover vertical space */
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 0.5rem;
+    }
+    #userChatOutput {
+      flex: 1;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem;
+    }
+    /* Decision Timer at the bottom */
+    #timerPanel {
+      flex-shrink: 0;
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between; /* text on left, buttons on right */
+    }
+    #timerDisplayPanel {
+      /* text on the left */
+    }
+    #timerControls {
+      display: none; /* only shown if host */
+      gap: 0.25rem;
+    }
+    /* TRAIL VISUAL (narrow) */
+    .trail-panel {
+      width: 40px;
+      background: linear-gradient(to bottom, #8B4513, #DEB887);
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      position: relative;
+      height: 100%;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .trail-panel .sun {
+      position: absolute;
+      top: 2px;
+      left: calc(50% - 10px);
+      font-size: 20px;
+    }
+    .trail-panel .trail-line {
+      position: absolute;
+      top: 30px;
+      bottom: 5px;
+      left: calc(50% - 1px);
+      width: 2px;
+      background: #4E342E;
+    }
+    .trail-panel .wagon-marker {
+      position: absolute;
+      left: calc(50% - 10px);
+      font-size: 18px;
+    }
+    .trail-panel .player-piece {
+      position: absolute;
+      font-size: 16px;
+    }
+    /* DRAGGABLE WINDOWS */
+    .draggable-window {
+      position: fixed;
+      width: 320px;
+      background: #ffffff;
+      border: 2px solid #666;
+      box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+      padding: 0.5rem;
+      z-index: 3000;
+      display: none;
+    }
+    .draggable-header {
+      background: #ddd;
+      padding: 0.5rem;
+      cursor: move;
+      font-weight: bold;
+      margin: -0.5rem -0.5rem 0.5rem -0.5rem;
+    }
+    .draggable-header .close-btn {
+      float: right;
+      cursor: pointer;
+      color: #444;
+    }
+    .window-content {
+      padding: 0.5rem;
+    }
+    /* Dice roll styling */
+    .dice-roll {
+      font-size: 24px;
+      margin: 0 5px;
+      display: inline-block;
+      animation: shake 0.5s ease;
+    }
+    @keyframes shake {
+      0% { transform: translate(0, 0); }
+      25% { transform: translate(2px, -2px); }
+      50% { transform: translate(-2px, 2px); }
+      75% { transform: translate(2px, 2px); }
+      100% { transform: translate(0, 0); }
+    }
   </style>
 </head>
 <body>
-  <div class="container my-4">
-    <h1 class="mb-4">Oregon Trail Multiplayer Prototype</h1>
+  <header>
+    <div class="title">Wagon of Woe: Frontier Fury</div>
+    <div></div>
+  </header>
 
-    <!-- Character Info Form -->
-    <div class="mb-4">
-      <h2>Character Information</h2>
-      <div class="mb-2">
-        <input id="characterName" type="text" class="form-control" placeholder="Enter your character name" />
-      </div>
-      <div class="mb-2">
-        <input id="characterInfo" type="text" class="form-control" placeholder="Optional: Additional info about you" />
-      </div>
-      <div class="mb-2">
-        <input id="characterSkills" type="text" class="form-control" placeholder="Enter your character skills" />
-      </div>
-      <button onclick="updateCharacterInfo()" class="btn btn-primary">Update Info</button>
-    </div>
-
-    <!-- Room Lobby Section -->
-    <div id="lobbySection" class="mb-4">
-      <h2>Room Lobby</h2>
-      <div class="mb-2">
-        <input id="roomInput" type="text" class="form-control" placeholder="Enter room ID (e.g., room1)" />
-      </div>
-      <button onclick="createOrJoinRoom()" class="btn btn-primary">Create/Join Room</button>
-      <div id="roomInfo" class="mt-2"></div>
-    </div>
-
-    <!-- Leader Controls -->
-    <div id="leaderControls" class="mb-4" style="display:none;">
-      <button onclick="startGame()" class="btn btn-success">Start Game</button>
-      <button onclick="startDecisionPhaseHost()" class="btn btn-warning">Start Decision Phase Timer</button>
-      <button onclick="pauseTimer()" class="btn btn-secondary">Pause Timer</button>
-      <button onclick="resumeTimer()" class="btn btn-secondary">Resume Timer</button>
-    </div>
-
-    <!-- Narrative Section -->
-    <div class="mb-4">
-      <h2>Narrative</h2>
-      <div id="narrativeOutput" class="outputBox"></div>
-    </div>
-
-    <!-- Command Input for Interactive Narrative -->
-    <div class="mb-4">
-      <h2>Your Response</h2>
-      <div class="input-group mb-2">
-        <input id="commandInput" type="text" class="form-control" placeholder="Enter your response here" />
-        <button onclick="sendResponse()" class="btn btn-primary">Send Response</button>
-      </div>
-      <p>Time remaining: <span id="timerDisplay">60</span></p>
-    </div>
-
-    <!-- User Chat Section -->
-    <div class="mb-4">
-      <h2>User Chat</h2>
-      <div id="userChatOutput" class="outputBox mb-2"></div>
-      <div class="input-group">
-        <input id="userChatInput" type="text" class="form-control" placeholder="Enter chat message" />
-        <button onclick="sendUserChat()" class="btn btn-primary">Send Chat</button>
+  <div class="main-container">
+    <!-- LEFT COL: SETTINGS BUTTON -->
+    <div class="left-col">
+      <button class="btn btn-secondary btn-settings" onclick="toggleSettingsMenu()">Settings</button>
+      <div id="settingsMenu">
+        <button onclick="openJoinRoomWindow()">Join/Create Room</button>
+        <button onclick="openPlayerSetupWindow()">Player Setup</button>
+        <button onclick="openJsonCodeWindow()">JSON Code</button>
+        <button onclick="openGameSettingsWindow()">Game Settings</button>
       </div>
     </div>
 
-    <!-- Progress Section -->
-    <div class="mb-4">
-      <h2>Progress</h2>
-      <div id="progressOutput" class="outputBox"></div>
+    <!-- CENTER COL: NARRATIVE -->
+    <div class="center-col">
+      <div class="narrative-col">
+        <div id="narrativeContainer">
+          <div id="narrativeOutput"></div>
+          <div class="response-row">
+            <input id="commandInput" type="text" class="form-control" placeholder="Enter your response here" />
+            <button onclick="sendResponse()" class="btn btn-primary">Send Response</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Inventory Section -->
-    <div class="mb-4">
-      <h2>Inventory</h2>
-      <div id="inventoryOutput" class="outputBox"></div>
-    </div>
-
-    <!-- JSON Code Section -->
-    <div class="mb-4">
-      <h2>JSON Code</h2>
-      <pre id="jsonOutput" class="outputBox"></pre>
-    </div>
-
-    <!-- Player Stats Section -->
-    <div class="mb-4">
-      <h2>Player Stats</h2>
-      <div id="playerStatsOutput" class="outputBox"></div>
+    <!-- RIGHT COL: STACKED PANELS + TRAIL -->
+    <div class="right-col">
+      <div class="right-panels">
+        <!-- Progress & Player Stats side by side -->
+        <div class="panels-row">
+          <div class="panel-box fixed-panel" style="height:120px;">
+            <h5>Progress</h5>
+            <div id="progressOutput"></div>
+          </div>
+          <div class="panel-box fixed-panel" style="height:120px;">
+            <h5>Player Stats</h5>
+            <div id="playerStatsOutput"></div>
+          </div>
+        </div>
+        <!-- Inventory: Twice as tall -->
+        <div id="inventoryPanel" class="panel-box">
+          <h5>Inventory</h5>
+          <div id="inventoryOutput"></div>
+        </div>
+        <!-- User Chat (flexible) -->
+        <div id="userChatPanel" class="panel-box">
+          <h5>User Chat</h5>
+          <div id="userChatOutput"></div>
+          <div class="input-group">
+            <input id="userChatInput" type="text" class="form-control" placeholder="Enter chat message" />
+            <button onclick="sendUserChat()" class="btn btn-primary">Send</button>
+          </div>
+        </div>
+        <!-- Decision Timer (text on left, buttons on right) -->
+        <div id="timerPanel" class="panel-box">
+          <div id="timerDisplayPanel">Decision Timer</div>
+          <div id="timerControls">
+            <button onclick="startDecisionPhaseHost()" class="btn btn-warning btn-sm">Start</button>
+            <button onclick="pauseTimer()" class="btn btn-secondary btn-sm">Pause</button>
+            <button onclick="resumeTimer()" class="btn btn-secondary btn-sm">Resume</button>
+          </div>
+        </div>
+      </div>
+      <!-- Trail Visual (narrow) -->
+      <div class="trail-panel">
+        <div class="sun">☀️</div>
+        <div class="trail-line"></div>
+        <div id="wagonMarker" class="wagon-marker">🚚</div>
+        <div id="playerPieces"></div>
+      </div>
     </div>
   </div>
 
-  <!-- Bootstrap JS Bundle -->
+  <!-- DRAGGABLE WINDOWS -->
+  <div id="joinRoomWindow" class="draggable-window">
+    <div class="draggable-header" id="joinRoomHeader">
+      Join/Create Room
+      <span class="close-btn" onclick="hideJoinRoomWindow()">✖</span>
+    </div>
+    <div class="window-content">
+      <input id="roomInputPopup" type="text" class="form-control mb-2" placeholder="Enter room ID (e.g., room1)" />
+      <button onclick="joinRoomFromPopup()" class="btn btn-primary w-100">Create/Join Room</button>
+      <div id="roomInfoPopup" class="mt-2"></div>
+      <div id="startGameContainer" style="display:none; margin-top:1rem;">
+        <button class="btn btn-success w-100" onclick="startGame()">Start Game</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="playerSetupWindow" class="draggable-window">
+    <div class="draggable-header" id="playerSetupHeader">
+      Player Setup
+      <span class="close-btn" onclick="hidePlayerSetupWindow()">✖</span>
+    </div>
+    <div class="window-content">
+      <h5>Character Information</h5>
+      <input id="characterNamePopup" type="text" class="form-control mb-2" placeholder="Enter your character name" />
+      <input id="characterInfoPopup" type="text" class="form-control mb-2" placeholder="Additional info about you" />
+      <input id="characterSkillsPopup" type="text" class="form-control mb-2" placeholder="Enter your character skills" />
+      <button onclick="updateCharacterInfoPopup()" class="btn btn-primary w-100">Update Info</button>
+    </div>
+  </div>
+
+  <div id="jsonCodeWindow" class="draggable-window">
+    <div class="draggable-header" id="jsonCodeHeader">
+      JSON Code
+      <span class="close-btn" onclick="hideJsonCodeWindow()">✖</span>
+    </div>
+    <div class="window-content" style="max-height:400px; overflow-y:auto;">
+      <pre id="jsonOutputPopup" style="background:#f0f0f0; margin:0;"></pre>
+    </div>
+  </div>
+
+  <div id="gameSettingsWindow" class="draggable-window">
+    <div class="draggable-header" id="gameSettingsHeader">
+      Game Settings
+      <span class="close-btn" onclick="hideGameSettingsWindow()">✖</span>
+    </div>
+    <div class="window-content">
+      <h5>Trail Distance (miles)</h5>
+      <input id="trailDistanceInput" type="number" class="form-control mb-2" placeholder="e.g., 1000" />
+      <button onclick="saveGameSettings()" class="btn btn-primary w-100">Save Settings</button>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Socket.IO -->
+  <script src="/socket.io/socket.io.js"></script>
+
   <script>
-    // Your existing JavaScript code remains here.
+    /* Global Variables */
     let roomId = "";
-    let userId = ""; // Will be set after character info update.
+    let userId = "";
     let characterName = "";
+    let trailDistance = 1000; // default trail distance in miles
     const socket = io('/oregon');
     let timerInterval;
-    let timeRemaining = 60; // seconds
+    let timeRemaining = 60;
+    let isLeader = false;
 
-    function updateCharacterInfo() {
-      characterName = document.getElementById('characterName').value;
-      const extraInfo = document.getElementById('characterInfo').value;
-      const characterSkills = document.getElementById('characterSkills').value;
-      if (!characterName) {
-        alert("Please enter a character name.");
-        return;
-      }
-      userId = characterName;
-      const info = { name: characterName, extra: extraInfo, skills: characterSkills };
-      socket.emit('update_character_info', { roomId, userId, info });
+    /* SETTINGS MENU */
+    function toggleSettingsMenu() {
+      const menu = document.getElementById('settingsMenu');
+      menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
     }
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('settingsMenu');
+      const btn = document.querySelector('.btn-settings');
+      if (!menu.contains(e.target) && e.target !== btn) {
+        menu.style.display = 'none';
+      }
+    });
 
-    function createOrJoinRoom() {
-      roomId = document.getElementById('roomInput').value;
+    /* DRAGGABLE WINDOWS */
+    function makeDraggable(headerId, windowId) {
+      const header = document.getElementById(headerId);
+      const win = document.getElementById(windowId);
+      let offsetX = 0, offsetY = 0;
+      let isDragging = false;
+      header.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        offsetX = e.clientX - win.offsetLeft;
+        offsetY = e.clientY - win.offsetTop;
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        win.style.left = (e.clientX - offsetX) + 'px';
+        win.style.top = (e.clientY - offsetY) + 'px';
+      });
+      document.addEventListener('mouseup', () => { isDragging = false; });
+    }
+    makeDraggable('joinRoomHeader','joinRoomWindow');
+    makeDraggable('playerSetupHeader','playerSetupWindow');
+    makeDraggable('jsonCodeHeader','jsonCodeWindow');
+    makeDraggable('gameSettingsHeader','gameSettingsWindow');
+
+    /* WINDOW SHOW/HIDE FUNCTIONS */
+    function openJoinRoomWindow() {
+      document.getElementById('joinRoomWindow').style.display = 'block';
+      document.getElementById('joinRoomWindow').style.left = 'calc(50% - 160px)';
+      document.getElementById('joinRoomWindow').style.top = '120px';
+    }
+    function hideJoinRoomWindow() { document.getElementById('joinRoomWindow').style.display = 'none'; }
+    function openPlayerSetupWindow() {
+      document.getElementById('playerSetupWindow').style.display = 'block';
+      document.getElementById('playerSetupWindow').style.left = 'calc(50% - 160px)';
+      document.getElementById('playerSetupWindow').style.top = '120px';
+    }
+    function hidePlayerSetupWindow() { document.getElementById('playerSetupWindow').style.display = 'none'; }
+    function openJsonCodeWindow() {
+      document.getElementById('jsonCodeWindow').style.display = 'block';
+      document.getElementById('jsonCodeWindow').style.left = 'calc(50% - 160px)';
+      document.getElementById('jsonCodeWindow').style.top = '120px';
+    }
+    function hideJsonCodeWindow() { document.getElementById('jsonCodeWindow').style.display = 'none'; }
+    function openGameSettingsWindow() {
+      document.getElementById('gameSettingsWindow').style.display = 'block';
+      document.getElementById('gameSettingsWindow').style.left = 'calc(50% - 160px)';
+      document.getElementById('gameSettingsWindow').style.top = '120px';
+    }
+    function hideGameSettingsWindow() { document.getElementById('gameSettingsWindow').style.display = 'none'; }
+
+    /* ROOM / CHARACTER / SOCKET LOGIC */
+    function joinRoomFromPopup() {
+      roomId = document.getElementById('roomInputPopup').value;
       if (!roomId) return;
       socket.emit('join_room', { roomId, userId: userId || characterName || "Unnamed", info: {} });
     }
+    function updateCharacterInfoPopup() {
+      characterName = document.getElementById('characterNamePopup').value;
+      const extraInfo = document.getElementById('characterInfoPopup').value;
+      const characterSkills = document.getElementById('characterSkillsPopup').value;
+      if (!characterName) { alert("Please enter a character name."); return; }
+      userId = characterName;
+      const info = { name: characterName, extra: extraInfo, skills: characterSkills };
+      socket.emit('update_character_info', { roomId, userId, info });
+      hidePlayerSetupWindow();
+    }
+    function sendResponse() {
+      const command = document.getElementById('commandInput').value;
+      if (!command || !roomId) return;
+      socket.emit('room_response', { roomId, userId, message: command });
+      document.getElementById('commandInput').value = "";
+    }
+    function sendUserChat() {
+      const msg = document.getElementById('userChatInput').value;
+      if (!msg || !roomId) return;
+      socket.emit('user_chat_message', { roomId, userId, message: msg });
+      document.getElementById('userChatInput').value = "";
+    }
+    function startGame() {
+      if (!roomId) { alert("Join or create a room first!"); return; }
+      if (!isLeader) { alert("Only the leader can start the game!"); return; }
+      socket.emit('start_game', { roomId });
+    }
+    function saveGameSettings() {
+      const input = document.getElementById('trailDistanceInput').value;
+      if (input && parseInt(input) > 0) {
+        trailDistance = parseInt(input);
+        alert("Game settings saved.");
+        hideGameSettingsWindow();
+        updateTrailDisplay();
+      } else { alert("Please enter a valid trail distance."); }
+    }
 
+    /* TYPEWRITER EFFECT WITH DICE ROLLING */
+    function typeWriter(element, text, speed = 30) {
+      element.innerHTML = '';
+      let i = 0;
+      function type() {
+        // If reached end of text, stop
+        if (i >= text.length) return;
+        // Check if the next 6 characters are "[dice]"
+        if (text.substring(i, i + 6) === "[dice]") {
+          i += 6; // Skip the token
+          displayDiceRoll(element, speed, type);
+          return;
+        }
+        element.innerHTML += text.charAt(i);
+        i++;
+        setTimeout(type, speed);
+      }
+      type();
+    }
+
+    function displayDiceRoll(element, speed, callback) {
+      const diceFaces = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+      const roll = diceFaces[Math.floor(Math.random() * diceFaces.length)];
+      // Append the dice roll with a special span for styling
+      element.innerHTML += `<span class="dice-roll">${roll}</span>`;
+      // Pause for 1 second before resuming
+      setTimeout(callback, 1000);
+    }
+
+    /* SOCKET EVENT HANDLERS */
     socket.on('room_info', (data) => {
-      const roomInfo = document.getElementById('roomInfo');
-      roomInfo.innerHTML = `<p>Room ${data.roomId}: ${data.members}/8 members</p>`;
+      document.getElementById('roomInfoPopup').innerHTML = `<p>Room ${data.roomId}: ${data.members}/8 members</p>`;
     });
-
     socket.on('room_leader', (data) => {
-      document.getElementById('leaderControls').style.display = "block";
+      isLeader = true;
+      document.getElementById('startGameContainer').style.display = 'block';
+      // Show the timer controls for the host
+      document.getElementById('timerControls').style.display = 'flex';
     });
-
     socket.on('narrative', (message) => {
-      const narrativeOutput = document.getElementById('narrativeOutput');
-      narrativeOutput.innerHTML += `<p>${message}</p>`;
-      narrativeOutput.scrollTop = narrativeOutput.scrollHeight;
+      const out = document.getElementById('narrativeOutput');
+      const paragraph = document.createElement('p');
+      out.appendChild(paragraph);
+      typeWriter(paragraph, message, 30);
     });
-
     socket.on('progress_update', (progress) => {
-      const progressOutput = document.getElementById('progressOutput');
-      progressOutput.innerHTML = `
+      document.getElementById('progressOutput').innerHTML = `
         <p><strong>Date:</strong> ${progress.currentDate.day} ${progress.currentDate.month}</p>
         <p><strong>Route Miles:</strong> ${progress.routeProgress.miles}</p>
         <p><strong>Pace:</strong> ${progress.pace}, <strong>Rations:</strong> ${progress.rations}</p>
       `;
+      updateTrailDisplay(progress.routeProgress.miles);
     });
-
     socket.on('inventory_update', (inventory) => {
-      const inventoryOutput = document.getElementById('inventoryOutput');
-      inventoryOutput.innerHTML = `
+      document.getElementById('inventoryOutput').innerHTML = `
         <p><strong>Oxen:</strong> ${inventory.oxen}</p>
         <p><strong>Food:</strong> ${inventory.food}</p>
         <p><strong>Clothes:</strong> ${inventory.clothes}</p>
@@ -170,29 +570,22 @@
         <p><strong>Money:</strong> ${inventory.money}</p>
       `;
     });
-
     socket.on('json_update', (state) => {
-      const jsonOutput = document.getElementById('jsonOutput');
-      jsonOutput.textContent = JSON.stringify(state, null, 2);
+      document.getElementById('jsonOutputPopup').textContent = JSON.stringify(state, null, 2);
     });
-
     socket.on('player_stats_update', (playerInfo) => {
-      const statsOutput = document.getElementById('playerStatsOutput');
       let statsHTML = "";
       for (const [uid, info] of Object.entries(playerInfo)) {
         if(info.name.trim().toLowerCase() === "unnamed") continue;
         statsHTML += `<p><strong>Name:</strong> ${info.name} | <strong>Skills:</strong> ${info.info.skills || "N/A"}</p>`;
-        if(info.inventory && Object.keys(info.inventory).length > 0) {
-          statsHTML += `<p><strong>Inventory:</strong> ${JSON.stringify(info.inventory)}</p>`;
-        }
       }
-      statsOutput.innerHTML = statsHTML;
+      document.getElementById('playerStatsOutput').innerHTML = statsHTML;
+      updateTrailPlayerPieces(Object.keys(playerInfo).length);
     });
-
     socket.on('user_chat_update', (data) => {
-      const chatOutput = document.getElementById('userChatOutput');
-      chatOutput.innerHTML += `<p><strong>${data.userId}:</strong> ${data.message}</p>`;
-      chatOutput.scrollTop = chatOutput.scrollHeight;
+      const chat = document.getElementById('userChatOutput');
+      chat.innerHTML += `<p><strong>${data.userId}:</strong> ${data.message}</p>`;
+      chat.scrollTop = chat.scrollHeight;
     });
 
     socket.on('start_timer', (data) => {
@@ -205,79 +598,79 @@
       resumeTimerClient(data.remaining);
     });
     socket.on('update_timer_display', (data) => {
-      document.getElementById('timerDisplay').textContent = data.text;
-      if (data.text === "Generating Response..." || data.text === "Generating...") {
-        if (timerInterval) {
-          clearInterval(timerInterval);
-          timerInterval = null;
+      const timerDisplay = document.getElementById('timerDisplayPanel');
+      if (timerDisplay) {
+        timerDisplay.textContent = data.text;
+        if (data.text === "Generating Response...") {
+          if (timerInterval) clearInterval(timerInterval);
         }
       }
     });
 
-    function sendResponse() {
-      const command = document.getElementById('commandInput').value;
-      if (!command || !roomId) return;
-      socket.emit('room_response', { roomId, userId, message: command });
-      document.getElementById('commandInput').value = "";
-    }
-
-    function sendUserChat() {
-      const msg = document.getElementById('userChatInput').value;
-      if (!msg || !roomId) return;
-      socket.emit('user_chat_message', { roomId, userId, message: msg });
-      document.getElementById('userChatInput').value = "";
-    }
-
-    function startGame() {
-      if (!roomId) return;
-      socket.emit('start_game', { roomId });
-    }
-
+    /* TIMER FUNCTIONS */
     function startDecisionPhaseHost() {
-      if (!roomId) return;
+      if (!roomId || !isLeader) return;
       socket.emit('start_decision_phase', { roomId, userId });
     }
-
-    function pauseTimer() {
-      if (!roomId) return;
-      socket.emit('pause_timer', { roomId });
-    }
-    function resumeTimer() {
-      if (!roomId) return;
-      socket.emit('resume_timer', { roomId });
-    }
-
     function resetTimer(startFrom = 60) {
       timeRemaining = startFrom;
-      document.getElementById('timerDisplay').textContent = timeRemaining;
+      const timerDisplay = document.getElementById('timerDisplayPanel');
+      if (timerDisplay) timerDisplay.textContent = timeRemaining;
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         timeRemaining--;
-        document.getElementById('timerDisplay').textContent = timeRemaining;
-        if (timeRemaining <= 0) {
-          clearInterval(timerInterval);
-        }
+        if (timerDisplay) timerDisplay.textContent = timeRemaining;
+        if (timeRemaining <= 0) clearInterval(timerInterval);
       }, 1000);
     }
+    function pauseTimer() {
+      if (!roomId || !isLeader) return;
+      socket.emit('pause_timer', { roomId });
+    }
+    function resumeTimer() {
+      if (!roomId || !isLeader) return;
+      socket.emit('resume_timer', { roomId });
+    }
     function pauseTimerClient(remaining) {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
-      document.getElementById('timerDisplay').textContent = remaining;
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+      const timerDisplay = document.getElementById('timerDisplayPanel');
+      if (timerDisplay) timerDisplay.textContent = remaining;
       timeRemaining = remaining;
     }
     function resumeTimerClient(remaining) {
       timeRemaining = remaining;
-      document.getElementById('timerDisplay').textContent = timeRemaining;
+      const timerDisplay = document.getElementById('timerDisplayPanel');
+      if (timerDisplay) timerDisplay.textContent = timeRemaining;
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         timeRemaining--;
-        document.getElementById('timerDisplay').textContent = timeRemaining;
-        if (timeRemaining <= 0) {
-          clearInterval(timerInterval);
-        }
+        if (timerDisplay) timerDisplay.textContent = timeRemaining;
+        if (timeRemaining <= 0) clearInterval(timerInterval);
       }, 1000);
+    }
+
+    /* TRAIL DISPLAY FUNCTIONS */
+    function updateTrailDisplay(milesTraveled = 0) {
+      const trailPanel = document.querySelector('.trail-panel');
+      const totalHeight = trailPanel.clientHeight;
+      const topOffset = 30; // space for the sun
+      const bottomOffset = 5;
+      const usableHeight = totalHeight - topOffset - bottomOffset;
+      let progressRatio = Math.min(milesTraveled / trailDistance, 1);
+      let markerTop = topOffset + usableHeight * (1 - progressRatio) - 10;
+      document.getElementById('wagonMarker').style.top = markerTop + "px";
+    }
+    function updateTrailPlayerPieces(numPlayers) {
+      const trailPanel = document.querySelector('.trail-panel');
+      const totalHeight = trailPanel.clientHeight;
+      const bottomOffset = 5;
+      let piecesHTML = "";
+      for (let i = 0; i < numPlayers; i++) {
+        let topPosition = totalHeight - bottomOffset - 20;
+        let leftPosition = 2 + (i * 18);
+        piecesHTML += `<div class="player-piece" style="top:${topPosition}px; left:${leftPosition}px;">♟️</div>`;
+      }
+      document.getElementById('playerPieces').innerHTML = piecesHTML;
     }
   </script>
 </body>

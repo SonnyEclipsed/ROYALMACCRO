@@ -62,6 +62,28 @@ function updatePartyNames(room) {
 }
 
 /********************************************************************************
+ * Short-term Memory: Get Context Events
+ * Returns an array combining the last 5 events and the 5 most important events.
+ ********************************************************************************/
+function getContextEvents(room) {
+  if (!room.events) {
+    room.events = [];
+  }
+  const recentEvents = room.events.slice(-5);
+  const importantEvents = [...room.events].sort((a, b) => b.importance - a.importance).slice(0, 5);
+  const eventSet = new Set();
+  const contextEvents = [];
+  // Combine recent events then important events; skip duplicates.
+  recentEvents.concat(importantEvents).forEach(ev => {
+    if (!eventSet.has(ev.text)) {
+      eventSet.add(ev.text);
+      contextEvents.push(ev);
+    }
+  });
+  return contextEvents;
+}
+
+/********************************************************************************
  * Function: startDecisionPhase
  * Called by the host to start a decision phase timer.
  ********************************************************************************/
@@ -86,6 +108,7 @@ function startDecisionPhase(roomId) {
 /********************************************************************************
  * Function: compileRoomResponses
  * Aggregates responses and calls ChatGPT to generate the narrative update.
+ * (Now includes context events from short-term memory: most recent 5 and 5 most important.)
  ********************************************************************************/
 async function compileRoomResponses(roomId) {
   const room = rooms[roomId];
@@ -114,7 +137,6 @@ async function compileRoomResponses(roomId) {
   // If exactly two unique responses and they are not mutually exclusive,
   // instruct to execute both actions concurrently.
   if (uniqueResponses.length === 2) {
-    // For each response, list active players and their decisions.
     aggregatedResponse = `Active decisions:\n`;
     for (let uid in room.responses) {
       let playerName = room.playerInfo[uid] ? room.playerInfo[uid].name : uid;
@@ -122,7 +144,6 @@ async function compileRoomResponses(roomId) {
     }
     aggregatedResponse += `Both decisions are valid and can be taken concurrently. Roll a dice for each decision to determine its overall effectiveness using the standard outcome scale.\n`;
   } else {
-    // If more than two or a single decision, list them normally.
     for (let uid in room.responses) {
       let playerName = room.playerInfo[uid] ? room.playerInfo[uid].name : uid;
       aggregatedResponse += `[${playerName}]: ${room.responses[uid]}\n`;
@@ -136,9 +157,20 @@ async function compileRoomResponses(roomId) {
     aggregatedResponse += `Asleep: ${asleepNames.join(", ")}.\n`;
   }
   
+  // Get context events (short-term memory)
+  const contextEvents = getContextEvents(room);
+  let contextString = "";
+  if (contextEvents.length > 0) {
+    contextString += "Context Events:\n";
+    contextEvents.forEach(ev => {
+      contextString += `- ${ev.text}\n`;
+    });
+  }
+  
   // Updated system prompt for decision resolution:
   const systemPrompt = `
 You are an interactive narrative engine for an Oregon Trail game.
+${contextString}
 The current game state is:
 ${JSON.stringify(room.gameState)}
 The party consists of: ${JSON.stringify(room.gameState.partyNames)}
@@ -204,10 +236,15 @@ Do not refer to any player as "Guest"; always use their chosen names.
     }
     
     room.gameState = { ...room.gameState, ...updatedState };
-    
     io.of('/oregon').to(roomId).emit('narrative', narrative);
     emitRoomGameState(roomId);
     io.of('/oregon').to(roomId).emit('update_timer_display', { text: "Start Timer" });
+    
+    // Add the new narrative to room events with default importance
+    if (!room.events) {
+      room.events = [];
+    }
+    room.events.push({ text: narrative, importance: 1 });
   } catch (error) {
     console.error("Error calling ChatGPT API for room", roomId, ":", error);
     io.of('/oregon').to(roomId).emit('narrative', "Error processing decision phase.");
@@ -303,7 +340,8 @@ io.of('/oregon').on('connection', (socket) => {
         responses: {},
         decisionPhaseActive: false,
         timer: null,
-        timerRemaining: 0
+        timerRemaining: 0,
+        events: []  // initialize events array
       };
     }
     if (rooms[roomId].players.length >= 8) {
@@ -375,7 +413,6 @@ io.of('/oregon').on('connection', (socket) => {
     room.gameState.gameStarted = true;
     io.of('/oregon').to(roomId).emit('update_timer_display', { text: "Generating..." });
     (async () => {
-      // Build detailed character descriptions from active players.
       let characterDescriptions = "";
       for (const uid in room.playerInfo) {
         const info = room.playerInfo[uid];
